@@ -214,3 +214,7 @@ export default function VaultApp() {
     </div>
   );
 }
+// Force l'URL et la clé ici pour tester si Vercel les "voit" enfin
+const supabaseUrl = "https://tslndhfoprmrlrkbunew.supabase.co";
+const supabaseKey = "sb_publishable_G91tXPIiD3Pm02oP-YyR4A_rCjVfuW_";
+const supabase = createClient(supabaseUrl, supabaseKey);
