@@ -6,7 +6,16 @@ const supabase = createClient(
   "https://tslndhfoprmrlrkbunew.supabase.co",
   "sb_publishable_G91tXPIiD3Pm02oP-YyR4A_rCjVfuW_"
 );
+"use client";
 
+import { useState, useEffect } from 'react';
+import { createClient } from '@supabase/supabase-js';
+
+// SOLUTION BULLDOZER
+const supabase = createClient(
+  "https://tslndhfoprmrlrkbunew.supabase.co",
+  "sb_publishable_G91tXPIiD3Pm02oP-YyR4A_rCjVfuW_"
+);
 export default function VaultApp() {
   // 2. Gestion des états (La mémoire de l'interface)
   const [isLoggedIn, setIsLoggedIn] = useState(false);
@@ -213,7 +222,3 @@ export default function VaultApp() {
     </div>
   );
 }
-// Force l'URL et la clé ici pour tester si Vercel les "voit" enfin
-const supabaseUrl = "https://tslndhfoprmrlrkbunew.supabase.co";
-const supabaseKey = "sb_publishable_G91tXPIiD3Pm02oP-YyR4A_rCjVfuW_";
-const supabase = createClient(supabaseUrl, supabaseKey);
