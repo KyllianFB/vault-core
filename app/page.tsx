@@ -77,7 +77,16 @@ export default function VaultApp() {
   };
 
   const handleVIPRequest = () => {
-    alert("Redirection vers la ligne sécurisée du gestionnaire de compte (+33 6 17 13 16 43)...");
+    // On détecte si l'utilisateur est sur un appareil mobile
+    const isMobile = /iPhone|Android|iPad|iPod/i.test(navigator.userAgent);
+
+    if (isMobile) {
+      // Sur téléphone : le bouton ouvre directement l'application "Téléphone"
+      window.location.href = "tel:+33617131643";
+    } else {
+      // Sur PC : on affiche le pop-up avec la consigne stricte
+      alert("Veuillez appeler le 06 17 13 16 43 pour obtenir une accréditation.");
+    }
   };
 
   // ------------------------------------------
