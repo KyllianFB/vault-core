@@ -26,11 +26,12 @@ export default function VaultApp() {
   // États pour la fenêtre modale d'ajout
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [newNom, setNewNom] = useState('');
+  const [newEmailEmploye, setNewEmailEmploye] = useState(''); // NOUVEAU : L'email de l'employé
   const [newPoste, setNewPoste] = useState('');
   const [newSalaire, setNewSalaire] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Persistance de la connexion au démarrage
+  // Persistance de la connexion
   useEffect(() => {
     setIsMounted(true);
     const storedLogin = localStorage.getItem('velara_logged_in');
@@ -43,7 +44,6 @@ export default function VaultApp() {
     }
   }, []);
 
-  // Sauvegarde de l'état de session
   useEffect(() => {
     if (isLoggedIn) {
       localStorage.setItem('velara_logged_in', 'true');
@@ -104,7 +104,7 @@ export default function VaultApp() {
     }
   };
 
-  // Ajout d'un membre dans la base de données
+  // Ajout d'un membre avec l'email pour Stripe Connect
   const handleAddMember = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
@@ -115,6 +115,7 @@ export default function VaultApp() {
         .insert([
           { 
             nom: newNom, 
+            email_employe: newEmailEmploye.toLowerCase().trim(), // Ajout de l'email dans la DB
             poste: newPoste, 
             salaire: Number(newSalaire), 
             entreprise_id: companyId 
@@ -128,6 +129,7 @@ export default function VaultApp() {
         setStaff([data[0], ...staff]);
         setIsAddModalOpen(false);
         setNewNom('');
+        setNewEmailEmploye('');
         setNewPoste('');
         setNewSalaire('');
       }
@@ -155,34 +157,26 @@ export default function VaultApp() {
 
   if (!isMounted) return null;
 
-  // ------------------------------------------
-  // ÉCRAN 1 : LA VITRINE PUBLIQUE
-  // ------------------------------------------
   if (showLanding && !isLoggedIn) {
     return (
       <div className="min-h-screen bg-[#0a0a0a] text-white font-sans selection:bg-gray-800 flex flex-col">
         <header className="flex justify-between items-center p-8 max-w-7xl mx-auto w-full relative z-10">
           <h1 className="text-xl tracking-[0.3em] font-light">VELARA</h1>
-          <button onClick={() => setShowLanding(false)} className="text-xs text-gray-400 hover:text-white tracking-widest transition-colors border border-gray-800 hover:border-gray-600 px-6 py-2 rounded-full">
-            ACCÈS PRIVÉ
-          </button>
+          <button onClick={() => setShowLanding(false)} className="text-xs text-gray-400 hover:text-white tracking-widest transition-colors border border-gray-800 hover:border-gray-600 px-6 py-2 rounded-full">ACCÈS PRIVÉ</button>
         </header>
         <main className="flex-1 flex flex-col items-center justify-center text-center px-4 mt-[-10vh]">
           <div className="inline-block border border-gray-800 text-gray-400 text-[10px] tracking-[0.3em] px-4 py-1.5 rounded-full mb-8">INFRASTRUCTURE DE GESTION</div>
           <h2 className="text-5xl md:text-7xl font-light tracking-tight mb-8 max-w-4xl">L'excellence financière, <br/><span className="text-gray-500">sans le bruit.</span></h2>
-          <p className="text-gray-400 max-w-2xl text-sm leading-relaxed mb-12 font-light">Velara déploie des architectures de paiement et des registres privés pour les entités exigeantes. Une gouvernance silencieuse, une exécution absolue.</p>
+          <p className="text-gray-400 max-w-2xl text-sm leading-relaxed mb-12 font-light">Velara déploie des architectures de paiement et des registres privés pour les entités exigeantes.</p>
           <button onClick={handleVIPRequest} className="bg-white text-black px-8 py-4 rounded-lg text-sm font-medium hover:bg-gray-200 transition-colors tracking-wide">Demander une accréditation</button>
         </main>
         <footer className="border-t border-gray-900 p-8 text-center flex flex-col md:flex-row justify-between items-center max-w-7xl mx-auto w-full text-[10px] text-gray-600 tracking-[0.2em]">
-          <p>© 2026 VELARA HOLDING. TOUS DROITS RÉSERVÉS.</p><p className="mt-4 md:mt-0">PARIS, FRANCE</p>
+          <p>© 2026 VELARA HOLDING.</p><p className="mt-4 md:mt-0">PARIS, FRANCE</p>
         </footer>
       </div>
     );
   }
 
-  // ------------------------------------------
-  // ÉCRAN 2 : PORTAIL D'AUTHENTIFICATION
-  // ------------------------------------------
   if (!isLoggedIn) {
     return (
       <div className="min-h-screen bg-[#0a0a0a] text-white flex flex-col items-center justify-center font-sans relative">
@@ -195,26 +189,22 @@ export default function VaultApp() {
           <form onSubmit={handleLogin} className="space-y-6">
             <div>
               <label className="block text-xs text-gray-500 mb-2 tracking-wider">IDENTIFICATION</label>
-              <input type="text" required value={email} onChange={(e) => setEmail(e.target.value)} className="w-full bg-black border border-gray-800 rounded-lg p-3 text-sm focus:outline-none focus:border-gray-600 transition-colors text-white" />
+              <input type="text" required value={email} onChange={(e) => setEmail(e.target.value)} className="w-full bg-black border border-gray-800 rounded-lg p-3 text-sm focus:outline-none focus:border-gray-600 text-white" />
             </div>
             <div>
               <label className="block text-xs text-gray-500 mb-2 tracking-wider">CLÉ DE CHIFFREMENT</label>
-              <input type="password" required value={password} onChange={(e) => setPassword(e.target.value)} className="w-full bg-black border border-gray-800 rounded-lg p-3 text-sm focus:outline-none focus:border-gray-600 transition-colors text-white" />
+              <input type="password" required value={password} onChange={(e) => setPassword(e.target.value)} className="w-full bg-black border border-gray-800 rounded-lg p-3 text-sm focus:outline-none focus:border-gray-600 text-white" />
             </div>
-            <button type="submit" className="w-full bg-white text-black font-medium py-3 rounded-lg mt-4 hover:bg-gray-200 transition-colors">Déchiffrer l'accès</button>
+            <button type="submit" className="w-full bg-white text-black font-medium py-3 rounded-lg mt-4 hover:bg-gray-200">Déchiffrer l'accès</button>
           </form>
         </div>
       </div>
     );
   }
 
-  // ------------------------------------------
-  // ÉCRAN 3 : COFFRE-FORT NUMÉRIQUE (DASHBOARD)
-  // ------------------------------------------
   return (
     <div className="min-h-screen bg-[#0a0a0a] text-white p-12 font-sans relative print:bg-white print:text-black print:p-0">
       
-      {/* LA FENÊTRE MODALE D'AJOUT (FLOUTÉE) */}
       {isAddModalOpen && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-md z-50 flex items-center justify-center p-4 print:hidden">
           <div className="bg-[#111] border border-gray-800 rounded-2xl w-full max-w-lg p-8 shadow-2xl">
@@ -226,18 +216,25 @@ export default function VaultApp() {
             <form onSubmit={handleAddMember} className="space-y-6">
               <div>
                 <label className="block text-xs text-gray-500 mb-2 tracking-wider">IDENTITÉ COMPLÈTE</label>
-                <input type="text" required value={newNom} onChange={(e) => setNewNom(e.target.value)} placeholder="Ex: Jean Dupont" className="w-full bg-black border border-gray-800 rounded-lg p-3 text-sm focus:outline-none focus:border-gray-600 transition-colors text-white placeholder-gray-700" />
+                <input type="text" required value={newNom} onChange={(e) => setNewNom(e.target.value)} placeholder="Ex: Jean Dupont" className="w-full bg-black border border-gray-800 rounded-lg p-3 text-sm focus:outline-none focus:border-gray-600 text-white placeholder-gray-700" />
               </div>
+              
+              {/* NOUVEAU CHAMP : EMAIL POUR STRIPE */}
+              <div>
+                <label className="block text-xs text-gray-500 mb-2 tracking-wider">EMAIL DE CONTACT (ONBOARDING)</label>
+                <input type="email" required value={newEmailEmploye} onChange={(e) => setNewEmailEmploye(e.target.value)} placeholder="Ex: jean@entreprise.com" className="w-full bg-black border border-gray-800 rounded-lg p-3 text-sm focus:outline-none focus:border-gray-600 text-white placeholder-gray-700" />
+              </div>
+
               <div>
                 <label className="block text-xs text-gray-500 mb-2 tracking-wider">FONCTION ATTRIBUÉE</label>
-                <input type="text" required value={newPoste} onChange={(e) => setNewPoste(e.target.value)} placeholder="Ex: Directeur Artistique" className="w-full bg-black border border-gray-800 rounded-lg p-3 text-sm focus:outline-none focus:border-gray-600 transition-colors text-white placeholder-gray-700" />
+                <input type="text" required value={newPoste} onChange={(e) => setNewPoste(e.target.value)} placeholder="Ex: Directeur Artistique" className="w-full bg-black border border-gray-800 rounded-lg p-3 text-sm focus:outline-none focus:border-gray-600 text-white placeholder-gray-700" />
               </div>
               <div>
                 <label className="block text-xs text-gray-500 mb-2 tracking-wider">RÉMUNÉRATION NETTE (€)</label>
-                <input type="number" required value={newSalaire} onChange={(e) => setNewSalaire(e.target.value)} placeholder="Ex: 4500" className="w-full bg-black border border-gray-800 rounded-lg p-3 text-sm focus:outline-none focus:border-gray-600 transition-colors text-white placeholder-gray-700" />
+                <input type="number" required value={newSalaire} onChange={(e) => setNewSalaire(e.target.value)} placeholder="Ex: 4500" className="w-full bg-black border border-gray-800 rounded-lg p-3 text-sm focus:outline-none focus:border-gray-600 text-white placeholder-gray-700" />
               </div>
               
-              <button type="submit" disabled={isSubmitting} className="w-full bg-white text-black font-medium py-3 rounded-lg mt-8 hover:bg-gray-200 transition-colors disabled:opacity-50">
+              <button type="submit" disabled={isSubmitting} className="w-full bg-white text-black font-medium py-3 rounded-lg mt-8 hover:bg-gray-200 disabled:opacity-50">
                 {isSubmitting ? "Chiffrement en cours..." : "Inscrire au registre"}
               </button>
             </form>
@@ -245,31 +242,25 @@ export default function VaultApp() {
         </div>
       )}
 
-      {/* EN-TÊTE CONFIGURÉ EN RESPONSIVE SÉCURISÉ */}
       <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 mb-16 max-w-6xl mx-auto border-b border-gray-800 pb-8 print:border-b-gray-300">
         <div>
           <h1 className="text-2xl tracking-[0.2em] font-light">VAULT</h1>
           <p className="text-[9px] text-gray-600 tracking-widest mt-1 uppercase print:text-gray-500">ID ENTITÉ : {companyId}</p>
         </div>
         
-        {/* Actions du coffre-fort */}
         <div className="flex flex-wrap items-center gap-4 md:gap-6 print:hidden">
-            {/* BOUTON D'ACTION AJOUTER (Style Premium Distinct) */}
             <button 
               onClick={() => setIsAddModalOpen(true)}
               className="text-[11px] text-white tracking-widest font-medium bg-[#161616] border border-gray-700 px-5 py-2.5 rounded-full hover:bg-[#222] hover:border-gray-500 transition-all shadow-inner"
             >
               + NOUVEAU MEMBRE
             </button>
-
             <button onClick={() => setIsPrivacyMode(!isPrivacyMode)} className="text-xs text-gray-400 hover:text-white transition-colors tracking-widest">
               {isPrivacyMode ? "👁️ RÉVÉLER" : "👁️‍🗨️ MASQUER"}
             </button>
-            
             <button onClick={() => window.print()} className="text-xs text-gray-400 hover:text-white transition-colors tracking-widest border border-gray-800 px-4 py-2 rounded-full hover:border-gray-600">
               📄 EXPORT PDF
             </button>
-            
             <button onClick={handleLogout} className="text-xs text-red-500 hover:text-red-400 transition-colors tracking-widest">
               DÉCONNEXION
             </button>
@@ -308,20 +299,18 @@ export default function VaultApp() {
                 ) : (
                   staff.map((person) => (
                     <tr key={person.id} className="border-t border-gray-800/30 hover:bg-white/[0.01] transition-colors print:border-gray-200">
-                      <td className="p-6 font-medium">
-                        {person.nom} 
-                        {companyId === "admin_global" && (
-                          <span className="text-[9px] text-gray-600 ml-2 border border-gray-800 px-1.5 py-0.5 rounded uppercase print:hidden">
-                            {person.entreprise_id}
-                          </span>
-                        )}
+                      <td className="p-6">
+                        <div className="font-medium">{person.nom}</div>
+                        {/* Affichage discret de l'email sous le nom */}
+                        <div className="text-[10px] text-gray-500 mt-1 tracking-wider">{person.email_employe || "Email non renseigné"}</div>
                       </td>
                       <td className="p-6 text-gray-400 print:text-gray-700">{person.poste}</td>
                       <td className="p-6 font-mono text-white print:text-black">
                         {isPrivacyMode ? "•••• €" : `${person.salaire} €`}
                       </td>
-                      <td className="p-6 text-right text-green-400 tracking-wider text-xs font-medium print:text-green-700">
-                        ✓ ACCÈS VALIDE
+                      <td className="p-6 text-right text-orange-400/80 tracking-wider text-[10px] font-medium print:text-orange-700">
+                        {/* Changement du statut en attente de Stripe */}
+                        ⏳ EN ATTENTE D'ONBOARDING
                       </td>
                     </tr>
                   ))
