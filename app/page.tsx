@@ -55,7 +55,8 @@ export default function VaultApp() {
       setNom(''); setPoste(''); setSalaire(''); setIban('');
       setShowModal(false);
     } else {
-      alert("Erreur lors de l'inscription.");
+      alert("Erreur Supabase : " + error.message + " (Code: " + error.code + ")");
+console.error("Détails de l'erreur :", error);
     }
   };
 
