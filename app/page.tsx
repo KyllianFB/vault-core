@@ -3,25 +3,17 @@
 import { useState, useEffect } from "react";
 import { createClient } from "@supabase/supabase-js";
 
-// Connexion Supabase sécurisée
+// Connexion Supabase (Désormais utilisée uniquement en LECTURE)
 const supabase = createClient(
   "https://tslndhfoprmrlrkbunew.supabase.co",
   "sb_publishable_G91tXPIiD3Pm02oP-YyR4A_rCjVfuW_"
 );
 
 export default function VaultApp() {
-  // États de l'application
   const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const [showModal, setShowModal] = useState(false);
   const [staff, setStaff] = useState<any[]>([]);
 
-  // États du formulaire
-  const [nom, setNom] = useState('');
-  const [poste, setPoste] = useState('');
-  const [salaire, setSalaire] = useState('');
-  const [iban, setIban] = useState('');
-
-  // Charger les données depuis Supabase au démarrage
+  // Charger les données (On lit ce que tu as configuré dans Supabase)
   const fetchStaff = async () => {
     const { data, error } = await supabase
       .from('registre')
@@ -32,9 +24,7 @@ export default function VaultApp() {
   };
 
   useEffect(() => {
-    if (isLoggedIn) {
-      fetchStaff();
-    }
+    if (isLoggedIn) fetchStaff();
   }, [isLoggedIn]);
 
   const handleLogin = (e: React.FormEvent) => {
@@ -42,51 +32,13 @@ export default function VaultApp() {
     setIsLoggedIn(true);
   };
 
-  // Soumettre une nouvelle demande (Statut par défaut : en_attente)
-  const handleAddStaff = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    const { error } = await supabase
-      .from('registre')
-      .insert([{ nom, poste, salaire: parseFloat(salaire), iban, statut: 'en_attente' }]);
-
-    if (!error) {
-      fetchStaff(); // Rafraîchir les données
-      setNom(''); setPoste(''); setSalaire(''); setIban('');
-      setShowModal(false);
-    } else {
-      alert("Erreur Supabase : " + error.message + " (Code: " + error.code + ")");
-console.error("Détails de l'erreur :", error);
-    }
-  };
-
-  // Action : Accepter une demande
-  const handleAccept = async (id: number) => {
-    const { error } = await supabase
-      .from('registre')
-      .update({ statut: 'actif' })
-      .eq('id', id);
-
-    if (!error) fetchStaff();
-  };
-
-  // Action : Refuser ou Archiver une demande
-  const handleReject = async (id: number) => {
-    const { error } = await supabase
-      .from('registre')
-      .update({ statut: 'refuse' })
-      .eq('id', id);
-
-    if (!error) fetchStaff();
-  };
-
   const handleSEPA = () => {
-    alert("Prêt pour l'infrastructure financière. En attente de liaison Stripe.");
+    alert("Demande d'autorisation SEPA chiffrée. En attente de la passerelle de paiement Stripe.");
   };
 
-  // Séparer les données pour l'affichage
-  const demandesEnAttente = staff.filter(person => person.statut === 'en_attente');
-  const membresActifs = staff.filter(person => person.statut === 'actif');
+  const handleVIPRequest = () => {
+    alert("Redirection vers la ligne sécurisée du gestionnaire de compte (+33 6 17 13 16 43)...");
+  };
 
   // ------------------------------------------
   // ÉCRAN DE CONNEXION
@@ -124,6 +76,15 @@ console.error("Détails de l'erreur :", error);
           </form>
         </div>
 
+        <div className="mt-8 text-center">
+            <button 
+              onClick={handleVIPRequest} 
+              className="text-xs text-gray-500 hover:text-white transition-colors tracking-widest border-b border-transparent hover:border-gray-500 pb-1"
+            >
+              DEMANDER UNE ACCRÉDITATION VIP
+            </button>
+        </div>
+        
         <div className="mt-16 text-center text-xs text-gray-600 space-y-2">
           <p>SIÈGE SOCIAL : FRANCE</p>
           <p>CONTACT EXCLUSIF : +33 6 17 13 16 43</p>
@@ -139,9 +100,17 @@ console.error("Détails de l'erreur :", error);
     <div className="min-h-screen bg-[#0a0a0a] text-white p-12 font-sans relative">
       <header className="flex justify-between items-center mb-16 max-w-6xl mx-auto border-b border-gray-800 pb-8">
         <h1 className="text-2xl tracking-[0.2em] font-light">VAULT</h1>
-        <div className="flex items-center gap-2 bg-[#111] border border-green-900/50 px-4 py-2 rounded-full">
-          <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></div>
-          <span className="text-green-500 text-xs tracking-wider">Réseau Sécurisé</span>
+        <div className="flex items-center gap-6">
+            <button 
+              onClick={handleVIPRequest} 
+              className="text-xs text-gray-500 hover:text-white transition-colors tracking-widest"
+            >
+              CONTACTER LE GESTIONNAIRE
+            </button>
+            <div className="flex items-center gap-2 bg-[#111] border border-green-900/50 px-4 py-2 rounded-full">
+              <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></div>
+              <span className="text-green-500 text-xs tracking-wider">Réseau Sécurisé</span>
+            </div>
         </div>
       </header>
 
@@ -151,65 +120,11 @@ console.error("Détails de l'erreur :", error);
             <h2 className="text-xs text-gray-500 tracking-widest mb-4">FONDS PROVISIONNÉS</h2>
             <p className="text-6xl font-light">0 €</p>
           </div>
-          <button 
-            onClick={() => setShowModal(true)}
-            className="border border-gray-800 hover:border-gray-600 px-6 py-3 rounded-lg text-sm transition-colors"
-          >
-            + Simuler une demande
-          </button>
         </div>
 
-        {/* SECTION 1 : DEMANDES D'INVITATION EN ATTENTE */}
+        {/* REGISTRE DES MEMBRES */}
         <div className="space-y-4">
-          <h2 className="text-xs text-amber-500 tracking-widest font-medium">DEMANDES D'INVITATION EN ATTENTE ({demandesEnAttente.length})</h2>
-          <div className="border border-gray-800 rounded-xl overflow-hidden bg-[#111]/30">
-            <table className="w-full text-left text-sm">
-              <thead className="border-b border-gray-800 text-xs text-gray-500 tracking-wider bg-black/20">
-                <tr>
-                  <th className="p-6 font-normal">IDENTITÉ</th>
-                  <th className="p-6 font-normal">FONCTION DEMANDÉE</th>
-                  <th className="p-6 font-normal">RÉMUNÉRATION ESTIMÉE</th>
-                  <th className="p-6 font-normal text-right">DÉCISION ADMINISTRATEUR</th>
-                </tr>
-              </thead>
-              <tbody>
-                {demandesEnAttente.length === 0 ? (
-                  <tr>
-                    <td colSpan={4} className="p-8 text-center text-gray-600 italic">
-                      Aucune demande en attente d'approbation.
-                    </td>
-                  </tr>
-                ) : (
-                  demandesEnAttente.map((person) => (
-                    <tr key={person.id} className="border-t border-gray-800/30 hover:bg-white/[0.01] transition-colors">
-                      <td className="p-6 font-medium">{person.nom}</td>
-                      <td className="p-6 text-gray-400">{person.poste}</td>
-                      <td className="p-6 font-mono text-gray-300">{person.salaire} €</td>
-                      <td className="p-6 text-right space-x-3">
-                        <button 
-                          onClick={() => handleReject(person.id)}
-                          className="text-xs text-gray-500 hover:text-red-400 border border-gray-800 hover:border-red-900/50 px-3 py-1.5 rounded transition-colors"
-                        >
-                          Refuser
-                        </button>
-                        <button 
-                          onClick={() => handleAccept(person.id)}
-                          className="text-xs bg-white text-black font-medium px-4 py-1.5 rounded hover:bg-gray-200 transition-colors"
-                        >
-                          Accepter
-                        </button>
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
-        </div>
-
-        {/* SECTION 2 : COFFRE-FORT / REGISTRE DES MEMBRES ACTIFS */}
-        <div className="space-y-4">
-          <h2 className="text-xs text-green-500 tracking-widest font-medium">REGISTRE DES MEMBRES ACTIFS ({membresActifs.length})</h2>
+          <h2 className="text-xs text-gray-500 tracking-widest font-medium">REGISTRE DES MEMBRES ACTIFS</h2>
           <div className="border border-gray-800 rounded-xl overflow-hidden bg-[#111]/50">
             <table className="w-full text-left text-sm">
               <thead className="border-b border-gray-800 text-xs text-gray-500 tracking-wider bg-black/20">
@@ -221,15 +136,15 @@ console.error("Détails de l'erreur :", error);
                 </tr>
               </thead>
               <tbody>
-                {membresActifs.length === 0 ? (
+                {staff.length === 0 ? (
                   <tr>
                     <td colSpan={4} className="p-8 text-center text-gray-600 italic">
-                      Aucun membre n'a encore été approuvé dans le coffre-fort.
+                      Aucun membre n'est actuellement provisionné sur ce registre.
                     </td>
                   </tr>
                 ) : (
-                  membresActifs.map((person) => (
-                    <tr key={person.id} className="border-t border-gray-800/30">
+                  staff.map((person) => (
+                    <tr key={person.id} className="border-t border-gray-800/30 hover:bg-white/[0.01] transition-colors">
                       <td className="p-6 font-medium">{person.nom}</td>
                       <td className="p-6 text-gray-400">{person.poste}</td>
                       <td className="p-6 font-mono text-white">{person.salaire} €</td>
@@ -253,52 +168,6 @@ console.error("Détails de l'erreur :", error);
           </button>
         </div>
       </main>
-
-      {/* MODALE DE CRÉATION DE DEMANDE */}
-      {showModal && (
-        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50">
-          <div className="bg-[#111] p-8 rounded-2xl w-full max-w-md border border-gray-800 shadow-2xl">
-            <h3 className="text-xl font-light mb-6 tracking-wider">SIMULER UNE INVITATION</h3>
-            <form onSubmit={handleAddStaff} className="space-y-4">
-              <input 
-                type="text" placeholder="Nom complet de la cible" required
-                value={nom} onChange={(e) => setNom(e.target.value)} 
-                className="w-full bg-black border border-gray-800 rounded-lg p-3 text-sm focus:outline-none focus:border-gray-600 text-white" 
-              />
-              <input 
-                type="text" placeholder="Poste (ex: Core Developer)" required
-                value={poste} onChange={(e) => setPoste(e.target.value)} 
-                className="w-full bg-black border border-gray-800 rounded-lg p-3 text-sm focus:outline-none focus:border-gray-600 text-white" 
-              />
-              <input 
-                type="number" placeholder="Rémunération (€)" required
-                value={salaire} onChange={(e) => setSalaire(e.target.value)} 
-                className="w-full bg-black border border-gray-800 rounded-lg p-3 text-sm focus:outline-none focus:border-gray-600 text-white" 
-              />
-              <input 
-                type="text" placeholder="Code IBAN de routage" required
-                value={iban} onChange={(e) => setIban(e.target.value)} 
-                className="w-full bg-black border border-gray-800 rounded-lg p-3 text-sm focus:outline-none focus:border-gray-600 text-white" 
-              />
-              
-              <div className="flex gap-4 mt-8 pt-4">
-                <button 
-                  type="button" onClick={() => setShowModal(false)} 
-                  className="flex-1 bg-transparent border border-gray-800 text-white py-3 rounded-lg text-sm hover:bg-gray-900 transition-colors"
-                >
-                  Annuler
-                </button>
-                <button 
-                  type="submit" 
-                  className="flex-1 bg-white text-black py-3 rounded-lg text-sm font-medium hover:bg-gray-200 transition-colors"
-                >
-                  Soumettre
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
