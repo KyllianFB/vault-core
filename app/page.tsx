@@ -26,12 +26,15 @@ export default function VaultApp() {
   // États pour la fenêtre modale d'ajout
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [newNom, setNewNom] = useState('');
-  const [newEmailEmploye, setNewEmailEmploye] = useState(''); // NOUVEAU : L'email de l'employé
+  const [newEmailEmploye, setNewEmailEmploye] = useState('');
   const [newPoste, setNewPoste] = useState('');
   const [newSalaire, setNewSalaire] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Persistance de la connexion
+  // État pour le chargement du paiement SEPA
+  const [isProcessingPayment, setIsProcessingPayment] = useState(false);
+
+  // 1. PERSISTANCE DE LA SESSION
   useEffect(() => {
     setIsMounted(true);
     const storedLogin = localStorage.getItem('velara_logged_in');
@@ -54,7 +57,7 @@ export default function VaultApp() {
     }
   }, [isLoggedIn, companyId]);
 
-  // Chargement du registre
+  // 2. CHARGEMENT DU REGISTRE DES MEMBRES
   const fetchStaff = async () => {
     let query = supabase.from('registre').select('*');
 
@@ -72,7 +75,7 @@ export default function VaultApp() {
 
   const totalFunds = staff.reduce((total, person) => total + (Number(person.salaire) || 0), 0);
 
-  // Authentification
+  // 3. AUTHENTIFICATION PORTAIL SECURISE
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     const userEmail = email.toLowerCase().trim();
@@ -104,18 +107,21 @@ export default function VaultApp() {
     }
   };
 
-  // Ajout d'un membre avec l'email pour Stripe Connect
+  // 4. ARCHITECTURE AUTOMATISÉE : ENREGISTREMENT ET INVITATION
   const handleAddMember = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
 
+    const formattedEmail = newEmailEmploye.toLowerCase().trim();
+
     try {
+      // Étape A : Écriture dans le registre de la base de données Supabase
       const { data, error } = await supabase
         .from('registre')
         .insert([
           { 
             nom: newNom, 
-            email_employe: newEmailEmploye.toLowerCase().trim(), // Ajout de l'email dans la DB
+            email_employe: formattedEmail, 
             poste: newPoste, 
             salaire: Number(newSalaire), 
             entreprise_id: companyId 
@@ -124,8 +130,26 @@ export default function VaultApp() {
         .select();
 
       if (error) {
-        alert("Erreur lors de l'ajout : " + error.message);
+        alert("Erreur lors de l'enregistrement DB : " + error.message);
       } else if (data) {
+        
+        // Étape B : Appel asynchrone à la route d'API d'automatisation (Simulation Stripe + Resend)
+        try {
+          await fetch('/api/invite', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              nom: newNom,
+              email_employe: formattedEmail,
+              poste: newPoste,
+              entreprise_id: companyId
+            })
+          });
+        } catch (apiErr) {
+          console.error("Erreur lors du déclenchement du flux d'automatisation :", apiErr);
+        }
+
+        // Étape C : Mise à jour de l'interface en temps réel
         setStaff([data[0], ...staff]);
         setIsAddModalOpen(false);
         setNewNom('');
@@ -134,13 +158,45 @@ export default function VaultApp() {
         setNewSalaire('');
       }
     } catch (err) {
-      alert("Erreur système lors de l'inscription.");
+      alert("Erreur système lors du traitement de l'inscription.");
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  const handleSEPA = () => alert("Demande d'autorisation SEPA chiffrée. En attente de la passerelle Stripe.");
+  // 5. GESTIONNAIRE DE PAIEMENT VIA SERVEUR API SECRÈTE
+  const handleSEPA = async () => {
+    if (totalFunds === 0) {
+      alert("Aucun fonds à provisionner. Le registre est vide.");
+      return;
+    }
+    
+    setIsProcessingPayment(true);
+
+    try {
+      const response = await fetch('/api/checkout', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          companyId: companyId, 
+          totalAmount: totalFunds 
+        })
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        alert("✅ DEPLOIEMENT REUSSI :\n" + data.message + "\n\nID Transaction : " + data.transactionId);
+      } else {
+        alert("❌ TRANSIT ECHOUE : " + data.error);
+      }
+    } catch (err) {
+      alert("Erreur critique de communication avec la passerelle bancaire.");
+    } finally {
+      setIsProcessingPayment(false);
+    }
+  };
+
   const handleVIPRequest = () => {
     const isMobile = /iPhone|Android|iPad|iPod/i.test(navigator.userAgent);
     if (isMobile) window.location.href = "tel:+33617131643";
@@ -157,26 +213,34 @@ export default function VaultApp() {
 
   if (!isMounted) return null;
 
+  // ------------------------------------------
+  // INTERFACE 1 : LA VITRINE PRINCIPALE
+  // ------------------------------------------
   if (showLanding && !isLoggedIn) {
     return (
       <div className="min-h-screen bg-[#0a0a0a] text-white font-sans selection:bg-gray-800 flex flex-col">
         <header className="flex justify-between items-center p-8 max-w-7xl mx-auto w-full relative z-10">
           <h1 className="text-xl tracking-[0.3em] font-light">VELARA</h1>
-          <button onClick={() => setShowLanding(false)} className="text-xs text-gray-400 hover:text-white tracking-widest transition-colors border border-gray-800 hover:border-gray-600 px-6 py-2 rounded-full">ACCÈS PRIVÉ</button>
+          <button onClick={() => setShowLanding(false)} className="text-xs text-gray-400 hover:text-white tracking-widest transition-colors border border-gray-800 hover:border-gray-600 px-6 py-2 rounded-full">
+            ACCÈS PRIVÉ
+          </button>
         </header>
         <main className="flex-1 flex flex-col items-center justify-center text-center px-4 mt-[-10vh]">
           <div className="inline-block border border-gray-800 text-gray-400 text-[10px] tracking-[0.3em] px-4 py-1.5 rounded-full mb-8">INFRASTRUCTURE DE GESTION</div>
           <h2 className="text-5xl md:text-7xl font-light tracking-tight mb-8 max-w-4xl">L'excellence financière, <br/><span className="text-gray-500">sans le bruit.</span></h2>
-          <p className="text-gray-400 max-w-2xl text-sm leading-relaxed mb-12 font-light">Velara déploie des architectures de paiement et des registres privés pour les entités exigeantes.</p>
+          <p className="text-gray-400 max-w-2xl text-sm leading-relaxed mb-12 font-light">Velara déploie des architectures de paiement et des registres privés pour les entités exigeantes. Une gouvernance silencieuse, une exécution absolue.</p>
           <button onClick={handleVIPRequest} className="bg-white text-black px-8 py-4 rounded-lg text-sm font-medium hover:bg-gray-200 transition-colors tracking-wide">Demander une accréditation</button>
         </main>
         <footer className="border-t border-gray-900 p-8 text-center flex flex-col md:flex-row justify-between items-center max-w-7xl mx-auto w-full text-[10px] text-gray-600 tracking-[0.2em]">
-          <p>© 2026 VELARA HOLDING.</p><p className="mt-4 md:mt-0">PARIS, FRANCE</p>
+          <p>© 2026 VELARA HOLDING. TOUS DROITS RÉSERVÉS.</p><p className="mt-4 md:mt-0">PARIS, FRANCE</p>
         </footer>
       </div>
     );
   }
 
+  // ------------------------------------------
+  // INTERFACE 2 : ACCÈS AUTHENTIFICATION
+  // ------------------------------------------
   if (!isLoggedIn) {
     return (
       <div className="min-h-screen bg-[#0a0a0a] text-white flex flex-col items-center justify-center font-sans relative">
@@ -189,22 +253,26 @@ export default function VaultApp() {
           <form onSubmit={handleLogin} className="space-y-6">
             <div>
               <label className="block text-xs text-gray-500 mb-2 tracking-wider">IDENTIFICATION</label>
-              <input type="text" required value={email} onChange={(e) => setEmail(e.target.value)} className="w-full bg-black border border-gray-800 rounded-lg p-3 text-sm focus:outline-none focus:border-gray-600 text-white" />
+              <input type="text" required value={email} onChange={(e) => setEmail(e.target.value)} className="w-full bg-black border border-gray-800 rounded-lg p-3 text-sm focus:outline-none focus:border-gray-600 transition-colors text-white" />
             </div>
             <div>
               <label className="block text-xs text-gray-500 mb-2 tracking-wider">CLÉ DE CHIFFREMENT</label>
-              <input type="password" required value={password} onChange={(e) => setPassword(e.target.value)} className="w-full bg-black border border-gray-800 rounded-lg p-3 text-sm focus:outline-none focus:border-gray-600 text-white" />
+              <input type="password" required value={password} onChange={(e) => setPassword(e.target.value)} className="w-full bg-black border border-gray-800 rounded-lg p-3 text-sm focus:outline-none focus:border-gray-600 transition-colors text-white" />
             </div>
-            <button type="submit" className="w-full bg-white text-black font-medium py-3 rounded-lg mt-4 hover:bg-gray-200">Déchiffrer l'accès</button>
+            <button type="submit" className="w-full bg-white text-black font-medium py-3 rounded-lg mt-4 hover:bg-gray-200 transition-colors">Déchiffrer l'accès</button>
           </form>
         </div>
       </div>
     );
   }
 
+  // ------------------------------------------
+  // INTERFACE 3 : COMPLEMENT DU COFFRE-FORT (TABLEAU)
+  // ------------------------------------------
   return (
     <div className="min-h-screen bg-[#0a0a0a] text-white p-12 font-sans relative print:bg-white print:text-black print:p-0">
       
+      {/* STRUCTURE DE LA MODALE INTERACTIVE D'INSCRIPTION */}
       {isAddModalOpen && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-md z-50 flex items-center justify-center p-4 print:hidden">
           <div className="bg-[#111] border border-gray-800 rounded-2xl w-full max-w-lg p-8 shadow-2xl">
@@ -216,32 +284,33 @@ export default function VaultApp() {
             <form onSubmit={handleAddMember} className="space-y-6">
               <div>
                 <label className="block text-xs text-gray-500 mb-2 tracking-wider">IDENTITÉ COMPLÈTE</label>
-                <input type="text" required value={newNom} onChange={(e) => setNewNom(e.target.value)} placeholder="Ex: Jean Dupont" className="w-full bg-black border border-gray-800 rounded-lg p-3 text-sm focus:outline-none focus:border-gray-600 text-white placeholder-gray-700" />
+                <input type="text" required value={newNom} onChange={(e) => setNewNom(e.target.value)} placeholder="Ex: Jean Dupont" className="w-full bg-black border border-gray-800 rounded-lg p-3 text-sm focus:outline-none focus:border-gray-600 transition-colors text-white placeholder-gray-700" />
               </div>
               
-              {/* NOUVEAU CHAMP : EMAIL POUR STRIPE */}
               <div>
                 <label className="block text-xs text-gray-500 mb-2 tracking-wider">EMAIL DE CONTACT (ONBOARDING)</label>
-                <input type="email" required value={newEmailEmploye} onChange={(e) => setNewEmailEmploye(e.target.value)} placeholder="Ex: jean@entreprise.com" className="w-full bg-black border border-gray-800 rounded-lg p-3 text-sm focus:outline-none focus:border-gray-600 text-white placeholder-gray-700" />
+                <input type="email" required value={newEmailEmploye} onChange={(e) => setNewEmailEmploye(e.target.value)} placeholder="Ex: jean@entreprise.com" className="w-full bg-black border border-gray-800 rounded-lg p-3 text-sm focus:outline-none focus:border-gray-600 transition-colors text-white placeholder-gray-700" />
               </div>
 
               <div>
                 <label className="block text-xs text-gray-500 mb-2 tracking-wider">FONCTION ATTRIBUÉE</label>
-                <input type="text" required value={newPoste} onChange={(e) => setNewPoste(e.target.value)} placeholder="Ex: Directeur Artistique" className="w-full bg-black border border-gray-800 rounded-lg p-3 text-sm focus:outline-none focus:border-gray-600 text-white placeholder-gray-700" />
-              </div>
-              <div>
-                <label className="block text-xs text-gray-500 mb-2 tracking-wider">RÉMUNÉRATION NETTE (€)</label>
-                <input type="number" required value={newSalaire} onChange={(e) => setNewSalaire(e.target.value)} placeholder="Ex: 4500" className="w-full bg-black border border-gray-800 rounded-lg p-3 text-sm focus:outline-none focus:border-gray-600 text-white placeholder-gray-700" />
+                <input type="text" required value={newPoste} onChange={(e) => setNewPoste(e.target.value)} placeholder="Ex: Directeur Artistique" className="w-full bg-black border border-gray-800 rounded-lg p-3 text-sm focus:outline-none focus:border-gray-600 transition-colors text-white placeholder-gray-700" />
               </div>
               
-              <button type="submit" disabled={isSubmitting} className="w-full bg-white text-black font-medium py-3 rounded-lg mt-8 hover:bg-gray-200 disabled:opacity-50">
-                {isSubmitting ? "Chiffrement en cours..." : "Inscrire au registre"}
+              <div>
+                <label className="block text-xs text-gray-500 mb-2 tracking-wider">RÉMUNÉRATION NETTE (€)</label>
+                <input type="number" required value={newSalaire} onChange={(e) => setNewSalaire(e.target.value)} placeholder="Ex: 4500" className="w-full bg-black border border-gray-800 rounded-lg p-3 text-sm focus:outline-none focus:border-gray-600 transition-colors text-white placeholder-gray-700" />
+              </div>
+              
+              <button type="submit" disabled={isSubmitting} className="w-full bg-white text-black font-medium py-3 rounded-lg mt-8 hover:bg-gray-200 transition-colors disabled:opacity-50">
+                {isSubmitting ? "Chiffrement et automatisation..." : "Inscrire au registre"}
               </button>
             </form>
           </div>
         </div>
       )}
 
+      {/* HEADER DE COMMANDE */}
       <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 mb-16 max-w-6xl mx-auto border-b border-gray-800 pb-8 print:border-b-gray-300">
         <div>
           <h1 className="text-2xl tracking-[0.2em] font-light">VAULT</h1>
@@ -301,15 +370,13 @@ export default function VaultApp() {
                     <tr key={person.id} className="border-t border-gray-800/30 hover:bg-white/[0.01] transition-colors print:border-gray-200">
                       <td className="p-6">
                         <div className="font-medium">{person.nom}</div>
-                        {/* Affichage discret de l'email sous le nom */}
-                        <div className="text-[10px] text-gray-500 mt-1 tracking-wider">{person.email_employe || "Email non renseigné"}</div>
+                        <div className="text-[10px] text-gray-500 mt-1 tracking-wider">{person.email_employe || "Aucun email configuré"}</div>
                       </td>
                       <td className="p-6 text-gray-400 print:text-gray-700">{person.poste}</td>
                       <td className="p-6 font-mono text-white print:text-black">
                         {isPrivacyMode ? "•••• €" : `${person.salaire} €`}
                       </td>
                       <td className="p-6 text-right text-orange-400/80 tracking-wider text-[10px] font-medium print:text-orange-700">
-                        {/* Changement du statut en attente de Stripe */}
                         ⏳ EN ATTENTE D'ONBOARDING
                       </td>
                     </tr>
@@ -320,9 +387,18 @@ export default function VaultApp() {
           </div>
         </div>
 
+        {/* CONTROLE SEPA RELIÉ À L'API DE ROUTAGE VIA MOCK INTERNE */}
         <div className="flex justify-end pt-4 print:hidden">
-          <button onClick={handleSEPA} className="bg-white text-black px-8 py-3 rounded-lg text-sm font-medium hover:bg-gray-200 transition-colors">
-            Autoriser les virements SEPA
+          <button 
+            onClick={handleSEPA} 
+            disabled={isProcessingPayment}
+            className="bg-white text-black px-8 py-3 rounded-lg text-sm font-medium hover:bg-gray-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+          >
+            {isProcessingPayment ? (
+              <span className="animate-pulse">Analyse des flux financiers...</span>
+            ) : (
+              "Autoriser les virements SEPA"
+            )}
           </button>
         </div>
       </main>
