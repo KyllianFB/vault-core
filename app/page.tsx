@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { createClient } from "@supabase/supabase-js";
 
-// Connexion Supabase en LECTURE
+// Connexion Supabase
 const supabase = createClient(
   "https://tslndhfoprmrlrkbunew.supabase.co",
   "sb_publishable_G91tXPIiD3Pm02oP-YyR4A_rCjVfuW_"
@@ -14,16 +14,16 @@ export default function VaultApp() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [staff, setStaff] = useState<any[]>([]);
   
-  // Verrou et gestion du Multi-Client
+  // Authentification et Multi-Client
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [companyId, setCompanyId] = useState(''); // Retient l'entreprise du client connecté
+  const [companyId, setCompanyId] = useState('');
 
-  // Charger les données filtrées par entreprise
+  // Charger les données filtrées
   const fetchStaff = async () => {
     let query = supabase.from('registre').select('*');
 
-    // SÉCURITÉ MULTI-CLIENT : Si ce n'est pas l'admin suprême, on filtre strictement
+    // Isolation des données
     if (companyId !== "admin_global") {
       query = query.eq('entreprise_id', companyId);
     }
@@ -36,23 +36,38 @@ export default function VaultApp() {
     if (isLoggedIn && companyId) fetchStaff();
   }, [isLoggedIn, companyId]);
 
-  // Système d'aiguillage des connexions
-  const handleLogin = (e: React.FormEvent) => {
+  // Connexion dynamique via Supabase
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     
     const userEmail = email.toLowerCase().trim();
 
+    // 1. Sécurité : Vérification de la Master Key Admin (Toi)
     if (userEmail === "boss@velara.com" && password === "Velara2026!") {
-      setCompanyId("admin_global"); // Toi : Accès à tout
+      setCompanyId("admin_global");
       setIsLoggedIn(true);
-    } else if (userEmail === "ceo@entreprisea.com" && password === "ClientVIP1") {
-      setCompanyId("entreprise_a"); // Client A : Ne verra que l'entreprise_a
-      setIsLoggedIn(true);
-    } else if (userEmail === "contact@holdingb.fr" && password === "ClientVIP2") {
-      setCompanyId("holding_b"); // Client B : Ne verra que la holding_b
-      setIsLoggedIn(true);
-    } else {
-      alert("Accès refusé. Identification ou clé incorrecte.");
+      return;
+    }
+
+    // 2. Vérification dynamique dans ta table "entreprises"
+    try {
+      const { data: entreprise, error } = await supabase
+        .from('entreprises')
+        .select('*')
+        .eq('email_contact', userEmail)
+        .eq('mot_de_passe', password)
+        .single(); // On cherche une correspondance unique
+
+      if (entreprise) {
+        // Client trouvé -> On récupère son identifiant unique de cloisonnement
+        setCompanyId(entreprise.id);
+        setIsLoggedIn(true);
+      } else {
+        alert("Accès refusé. Identification ou clé incorrecte.");
+        setPassword('');
+      }
+    } catch (err) {
+      alert("Erreur lors de l'authentification sécurisée.");
       setPassword('');
     }
   };
@@ -66,7 +81,7 @@ export default function VaultApp() {
   };
 
   // ------------------------------------------
-  // ÉCRAN 1 : LA VITRINE PUBLIQUE (LANDING PAGE)
+  // ÉCRAN 1 : LA VITRINE PUBLIQUE
   // ------------------------------------------
   if (showLanding) {
     return (
