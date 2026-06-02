@@ -15,15 +15,15 @@ export default function VaultApp() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [staff, setStaff] = useState<any[]>([]);
   
-  // Authentification et Multi-Client
+  // États d'authentification
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [companyId, setCompanyId] = useState('');
 
-  // NOUVEAU : Mode Confidentialité (Privacy Mode)
+  // Mode Confidentialité (Masquage des chiffres)
   const [isPrivacyMode, setIsPrivacyMode] = useState(true);
 
-  // 1. PERSISTANCE DE CONNEXION (Chargement de la mémoire)
+  // 1. PERSISTANCE DE CONNEXION : Chargement au démarrage
   useEffect(() => {
     setIsMounted(true);
     const storedLogin = localStorage.getItem('velara_logged_in');
@@ -32,11 +32,11 @@ export default function VaultApp() {
     if (storedLogin === 'true' && storedCompany) {
       setIsLoggedIn(true);
       setCompanyId(storedCompany);
-      setShowLanding(false); // On passe la vitrine si on est déjà connecté
+      setShowLanding(false);
     }
   }, []);
 
-  // Sauvegarde dans la mémoire du navigateur quand l'état change
+  // Sauvegarde automatique de la session
   useEffect(() => {
     if (isLoggedIn) {
       localStorage.setItem('velara_logged_in', 'true');
@@ -47,15 +47,20 @@ export default function VaultApp() {
     }
   }, [isLoggedIn, companyId]);
 
-  // Charger les données filtrées
+  // 2. CHARGEMENT DES MEMBRES (Filtré par entreprise)
   const fetchStaff = async () => {
     let query = supabase.from('registre').select('*');
 
+    // Si ce n'est pas l'admin général, on applique le cloisonnement strict
     if (companyId !== "admin_global") {
       query = query.eq('entreprise_id', companyId);
     }
 
     const { data, error } = await query.order('created_at', { ascending: false });
+    
+    if (error) {
+      console.error("Erreur lors de la récupération du registre :", error.message);
+    }
     if (data) setStaff(data);
   };
 
@@ -63,20 +68,22 @@ export default function VaultApp() {
     if (isLoggedIn && companyId) fetchStaff();
   }, [isLoggedIn, companyId]);
 
-  // Calcul mathématique des fonds totaux
+  // Calcul du montant total des salaires provisionnés
   const totalFunds = staff.reduce((total, person) => total + (Number(person.salaire) || 0), 0);
 
-  // Connexion dynamique
+  // 3. CONNEXION DYNAMIQUE ET LOGS DE DIAGNOSTIC
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     const userEmail = email.toLowerCase().trim();
 
+    // Vérification de la Master Key de l'administrateur
     if (userEmail === "boss@velara.com" && password === "Velara2026!") {
       setCompanyId("admin_global");
       setIsLoggedIn(true);
       return;
     }
 
+    // Requête dynamique sur la table "entreprises"
     try {
       const { data: entreprise, error } = await supabase
         .from('entreprises')
@@ -85,12 +92,12 @@ export default function VaultApp() {
         .eq('mot_de_passe', password)
         .single();
 
-      // DIAGNOSTIC : Si Supabase refuse, on affiche la cause dans la console
+      // LOGS DE DEBUGGING : S'affichent dans la console de l'inspecteur (F12) en cas d'échec
       if (error) {
-        console.error("=== DIAGNOSTIC SÉCURITÉ VELARA ===");
-        console.error("Code erreur :", error.code);
-        console.error("Message :", error.message);
-        console.error("Détails :", error.details);
+        console.error("=== DIAGNOSTIC CONNEXION VELARA ===");
+        console.error("Code erreur Supabase :", error.code);
+        console.error("Détail du message :", error.message);
+        console.error("Tentative avec l'email :", userEmail);
       }
 
       if (entreprise) {
@@ -101,7 +108,7 @@ export default function VaultApp() {
         setPassword('');
       }
     } catch (err) {
-      console.error("Erreur critique système :", err);
+      console.error("Erreur critique d'authentification :", err);
       alert("Erreur lors de l'authentification sécurisée.");
       setPassword('');
     }
@@ -128,12 +135,6 @@ export default function VaultApp() {
     setShowLanding(true);
   };
 
-  // NOUVEAU : Fonction d'export PDF
-  const handleExportPDF = () => {
-    window.print();
-  };
-
-  // Empêcher les erreurs de rendu (Hydration)
   if (!isMounted) return null;
 
   // ------------------------------------------
@@ -144,7 +145,10 @@ export default function VaultApp() {
       <div className="min-h-screen bg-[#0a0a0a] text-white font-sans selection:bg-gray-800 flex flex-col">
         <header className="flex justify-between items-center p-8 max-w-7xl mx-auto w-full relative z-10">
           <h1 className="text-xl tracking-[0.3em] font-light">VELARA</h1>
-          <button onClick={() => setShowLanding(false)} className="text-xs text-gray-400 hover:text-white tracking-widest transition-colors border border-gray-800 hover:border-gray-600 px-6 py-2 rounded-full">
+          <button 
+            onClick={() => setShowLanding(false)} 
+            className="text-xs text-gray-400 hover:text-white tracking-widest transition-colors border border-gray-800 hover:border-gray-600 px-6 py-2 rounded-full"
+          >
             ACCÈS PRIVÉ
           </button>
         </header>
@@ -161,7 +165,10 @@ export default function VaultApp() {
             Velara déploie des architectures de paiement et des registres privés pour les entités exigeantes. 
             Une gouvernance silencieuse, une exécution absolue.
           </p>
-          <button onClick={handleVIPRequest} className="bg-white text-black px-8 py-4 rounded-lg text-sm font-medium hover:bg-gray-200 transition-colors tracking-wide">
+          <button 
+            onClick={handleVIPRequest} 
+            className="bg-white text-black px-8 py-4 rounded-lg text-sm font-medium hover:bg-gray-200 transition-colors tracking-wide"
+          >
             Demander une accréditation
           </button>
         </main>
@@ -175,12 +182,15 @@ export default function VaultApp() {
   }
 
   // ------------------------------------------
-  // ÉCRAN 2 : CONNEXION (VAULT)
+  // ÉCRAN 2 : CONNEXION (VAULT AUTH)
   // ------------------------------------------
   if (!isLoggedIn) {
     return (
       <div className="min-h-screen bg-[#0a0a0a] text-white flex flex-col items-center justify-center font-sans relative">
-        <button onClick={() => setShowLanding(true)} className="absolute top-8 left-8 text-xs text-gray-500 hover:text-white tracking-widest transition-colors">
+        <button 
+          onClick={() => setShowLanding(true)} 
+          className="absolute top-8 left-8 text-xs text-gray-500 hover:text-white tracking-widest transition-colors"
+        >
           ← RETOUR À LA VITRINE
         </button>
         <div className="mb-12 text-center">
@@ -191,13 +201,24 @@ export default function VaultApp() {
           <form onSubmit={handleLogin} className="space-y-6">
             <div>
               <label className="block text-xs text-gray-500 mb-2 tracking-wider">IDENTIFICATION</label>
-              <input type="text" required placeholder="Identifiant sécurisé" value={email} onChange={(e) => setEmail(e.target.value)} className="w-full bg-black border border-gray-800 rounded-lg p-3 text-sm focus:outline-none focus:border-gray-600 transition-colors text-white placeholder-gray-700" />
+              <input 
+                type="text" required placeholder="Identifiant sécurisé" 
+                value={email} onChange={(e) => setEmail(e.target.value)} 
+                className="w-full bg-black border border-gray-800 rounded-lg p-3 text-sm focus:outline-none focus:border-gray-600 transition-colors text-white placeholder-gray-700" 
+              />
             </div>
             <div>
               <label className="block text-xs text-gray-500 mb-2 tracking-wider">CLÉ DE CHIFFREMENT</label>
-              <input type="password" required placeholder="••••••••••••" value={password} onChange={(e) => setPassword(e.target.value)} className="w-full bg-black border border-gray-800 rounded-lg p-3 text-sm focus:outline-none focus:border-gray-600 transition-colors text-white placeholder-gray-700" />
+              <input 
+                type="password" required placeholder="••••••••••••" 
+                value={password} onChange={(e) => setPassword(e.target.value)} 
+                className="w-full bg-black border border-gray-800 rounded-lg p-3 text-sm focus:outline-none focus:border-gray-600 transition-colors text-white placeholder-gray-700" 
+              />
             </div>
-            <button type="submit" className="w-full bg-white text-black font-medium py-3 rounded-lg mt-4 hover:bg-gray-200 transition-colors">
+            <button 
+              type="submit" 
+              className="w-full bg-white text-black font-medium py-3 rounded-lg mt-4 hover:bg-gray-200 transition-colors"
+            >
               Déchiffrer l'accès
             </button>
           </form>
@@ -207,7 +228,7 @@ export default function VaultApp() {
   }
 
   // ------------------------------------------
-  // ÉCRAN 3 : TABLEAU DE BORD (AVEC MODE PRIVÉ & EXPORT PDF)
+  // ÉCRAN 3 : TABLEAU DE BORD (COFFRE-FORT COUVÉ)
   // ------------------------------------------
   return (
     <div className="min-h-screen bg-[#0a0a0a] text-white p-12 font-sans relative print:bg-white print:text-black print:p-0">
@@ -217,9 +238,7 @@ export default function VaultApp() {
           <p className="text-[9px] text-gray-600 tracking-widest mt-1 uppercase print:text-gray-500">ID ENTITÉ : {companyId}</p>
         </div>
         
-        {/* Tous ces boutons disparaissent quand on imprime en PDF (print:hidden) */}
         <div className="flex items-center gap-6 print:hidden">
-            {/* Bouton Masquer/Afficher */}
             <button 
               onClick={() => setIsPrivacyMode(!isPrivacyMode)}
               className="text-xs text-gray-400 hover:text-white transition-colors tracking-widest flex items-center gap-2"
@@ -227,9 +246,8 @@ export default function VaultApp() {
               {isPrivacyMode ? "👁️ RÉVÉLER" : "👁️‍🗨️ MASQUER"}
             </button>
 
-            {/* Bouton Export PDF */}
             <button 
-              onClick={handleExportPDF}
+              onClick={() => window.print()}
               className="text-xs text-gray-400 hover:text-white transition-colors tracking-widest flex items-center gap-2 border border-gray-800 px-4 py-2 rounded-full hover:border-gray-600"
             >
               📄 EXPORT PDF
@@ -245,7 +263,6 @@ export default function VaultApp() {
         <div className="flex justify-between items-end">
           <div>
             <h2 className="text-xs text-gray-500 tracking-widest mb-4">FONDS PROVISIONNÉS</h2>
-            {/* Affichage des montants avec condition Privacy Mode */}
             <p className="text-6xl font-light">
               {isPrivacyMode ? "••••••" : totalFunds.toLocaleString('fr-FR')} €
             </p>
@@ -284,7 +301,6 @@ export default function VaultApp() {
                       </td>
                       <td className="p-6 text-gray-400 print:text-gray-700">{person.poste}</td>
                       <td className="p-6 font-mono text-white print:text-black">
-                        {/* Masquage du salaire */}
                         {isPrivacyMode ? "•••• €" : `${person.salaire} €`}
                       </td>
                       <td className="p-6 text-right text-green-400 tracking-wider text-xs font-medium print:text-green-700">
