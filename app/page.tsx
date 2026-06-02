@@ -85,6 +85,14 @@ export default function VaultApp() {
         .eq('mot_de_passe', password)
         .single();
 
+      // DIAGNOSTIC : Si Supabase refuse, on affiche la cause dans la console
+      if (error) {
+        console.error("=== DIAGNOSTIC SÉCURITÉ VELARA ===");
+        console.error("Code erreur :", error.code);
+        console.error("Message :", error.message);
+        console.error("Détails :", error.details);
+      }
+
       if (entreprise) {
         setCompanyId(entreprise.id);
         setIsLoggedIn(true);
@@ -93,6 +101,7 @@ export default function VaultApp() {
         setPassword('');
       }
     } catch (err) {
+      console.error("Erreur critique système :", err);
       alert("Erreur lors de l'authentification sécurisée.");
       setPassword('');
     }
