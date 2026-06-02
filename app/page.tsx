@@ -3,15 +3,20 @@
 import { useState, useEffect } from "react";
 import { createClient } from "@supabase/supabase-js";
 
-// Connexion Supabase (Désormais utilisée uniquement en LECTURE)
+// Connexion Supabase (Utilisée uniquement en LECTURE pour la sécurité)
 const supabase = createClient(
   "https://tslndhfoprmrlrkbunew.supabase.co",
   "sb_publishable_G91tXPIiD3Pm02oP-YyR4A_rCjVfuW_"
 );
 
 export default function VaultApp() {
+  // États de l'application
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [staff, setStaff] = useState<any[]>([]);
+  
+  // États pour le verrouillage (Master Key)
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
 
   // Charger les données (On lit ce que tu as configuré dans Supabase)
   const fetchStaff = async () => {
@@ -27,9 +32,17 @@ export default function VaultApp() {
     if (isLoggedIn) fetchStaff();
   }, [isLoggedIn]);
 
+  // Fonction de vérification du mot de passe
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
-    setIsLoggedIn(true);
+    
+    // Le verrou : Seuls ces identifiants exacts peuvent ouvrir l'application
+    if (email === "boss@velara.com" && password === "Velara2026!") {
+      setIsLoggedIn(true);
+    } else {
+      alert("Accès refusé. Identification ou clé incorrecte.");
+      setPassword(''); // Efface le mot de passe pour forcer à recommencer
+    }
   };
 
   const handleSEPA = () => {
@@ -41,7 +54,7 @@ export default function VaultApp() {
   };
 
   // ------------------------------------------
-  // ÉCRAN DE CONNEXION
+  // ÉCRAN DE CONNEXION (SÉCURISÉ)
   // ------------------------------------------
   if (!isLoggedIn) {
     return (
@@ -57,6 +70,8 @@ export default function VaultApp() {
               <label className="block text-xs text-gray-500 mb-2 tracking-wider">IDENTIFICATION</label>
               <input 
                 type="text" required placeholder="Identifiant sécurisé"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
                 className="w-full bg-black border border-gray-800 rounded-lg p-3 text-sm focus:outline-none focus:border-gray-600 transition-colors text-white placeholder-gray-700"
               />
             </div>
@@ -64,6 +79,8 @@ export default function VaultApp() {
               <label className="block text-xs text-gray-500 mb-2 tracking-wider">CLÉ DE CHIFFREMENT</label>
               <input 
                 type="password" required placeholder="••••••••••••"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
                 className="w-full bg-black border border-gray-800 rounded-lg p-3 text-sm focus:outline-none focus:border-gray-600 transition-colors text-white placeholder-gray-700"
               />
             </div>
@@ -94,7 +111,7 @@ export default function VaultApp() {
   }
 
   // ------------------------------------------
-  // ÉCRAN DU TABLEAU DE BORD
+  // ÉCRAN DU TABLEAU DE BORD (COFFRE-FORT)
   // ------------------------------------------
   return (
     <div className="min-h-screen bg-[#0a0a0a] text-white p-12 font-sans relative">
