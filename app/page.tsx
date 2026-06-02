@@ -10,6 +10,7 @@ const supabase = createClient(
 );
 
 export default function VaultApp() {
+  const [isMounted, setIsMounted] = useState(false);
   const [showLanding, setShowLanding] = useState(true);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [staff, setStaff] = useState<any[]>([]);
@@ -19,11 +20,37 @@ export default function VaultApp() {
   const [password, setPassword] = useState('');
   const [companyId, setCompanyId] = useState('');
 
+  // NOUVEAU : Mode Confidentialité (Privacy Mode)
+  const [isPrivacyMode, setIsPrivacyMode] = useState(true);
+
+  // 1. PERSISTANCE DE CONNEXION (Chargement de la mémoire)
+  useEffect(() => {
+    setIsMounted(true);
+    const storedLogin = localStorage.getItem('velara_logged_in');
+    const storedCompany = localStorage.getItem('velara_company_id');
+    
+    if (storedLogin === 'true' && storedCompany) {
+      setIsLoggedIn(true);
+      setCompanyId(storedCompany);
+      setShowLanding(false); // On passe la vitrine si on est déjà connecté
+    }
+  }, []);
+
+  // Sauvegarde dans la mémoire du navigateur quand l'état change
+  useEffect(() => {
+    if (isLoggedIn) {
+      localStorage.setItem('velara_logged_in', 'true');
+      localStorage.setItem('velara_company_id', companyId);
+    } else {
+      localStorage.removeItem('velara_logged_in');
+      localStorage.removeItem('velara_company_id');
+    }
+  }, [isLoggedIn, companyId]);
+
   // Charger les données filtrées
   const fetchStaff = async () => {
     let query = supabase.from('registre').select('*');
 
-    // Isolation des données
     if (companyId !== "admin_global") {
       query = query.eq('entreprise_id', companyId);
     }
@@ -36,30 +63,29 @@ export default function VaultApp() {
     if (isLoggedIn && companyId) fetchStaff();
   }, [isLoggedIn, companyId]);
 
-  // Connexion dynamique via Supabase
+  // Calcul mathématique des fonds totaux
+  const totalFunds = staff.reduce((total, person) => total + (Number(person.salaire) || 0), 0);
+
+  // Connexion dynamique
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    
     const userEmail = email.toLowerCase().trim();
 
-    // 1. Sécurité : Vérification de la Master Key Admin (Toi)
     if (userEmail === "boss@velara.com" && password === "Velara2026!") {
       setCompanyId("admin_global");
       setIsLoggedIn(true);
       return;
     }
 
-    // 2. Vérification dynamique dans ta table "entreprises"
     try {
       const { data: entreprise, error } = await supabase
         .from('entreprises')
         .select('*')
         .eq('email_contact', userEmail)
         .eq('mot_de_passe', password)
-        .single(); // On cherche une correspondance unique
+        .single();
 
       if (entreprise) {
-        // Client trouvé -> On récupère son identifiant unique de cloisonnement
         setCompanyId(entreprise.id);
         setIsLoggedIn(true);
       } else {
@@ -77,30 +103,39 @@ export default function VaultApp() {
   };
 
   const handleVIPRequest = () => {
-    // On détecte si l'utilisateur est sur un appareil mobile
     const isMobile = /iPhone|Android|iPad|iPod/i.test(navigator.userAgent);
-
     if (isMobile) {
-      // Sur téléphone : le bouton ouvre directement l'application "Téléphone"
       window.location.href = "tel:+33617131643";
     } else {
-      // Sur PC : on affiche le pop-up avec la consigne stricte
       alert("Veuillez appeler le 06 17 13 16 43 pour obtenir une accréditation.");
     }
   };
 
+  const handleLogout = () => {
+    setIsLoggedIn(false);
+    setCompanyId('');
+    setEmail('');
+    setPassword('');
+    setShowLanding(true);
+  };
+
+  // NOUVEAU : Fonction d'export PDF
+  const handleExportPDF = () => {
+    window.print();
+  };
+
+  // Empêcher les erreurs de rendu (Hydration)
+  if (!isMounted) return null;
+
   // ------------------------------------------
   // ÉCRAN 1 : LA VITRINE PUBLIQUE
   // ------------------------------------------
-  if (showLanding) {
+  if (showLanding && !isLoggedIn) {
     return (
       <div className="min-h-screen bg-[#0a0a0a] text-white font-sans selection:bg-gray-800 flex flex-col">
         <header className="flex justify-between items-center p-8 max-w-7xl mx-auto w-full relative z-10">
           <h1 className="text-xl tracking-[0.3em] font-light">VELARA</h1>
-          <button 
-            onClick={() => setShowLanding(false)}
-            className="text-xs text-gray-400 hover:text-white tracking-widest transition-colors border border-gray-800 hover:border-gray-600 px-6 py-2 rounded-full"
-          >
+          <button onClick={() => setShowLanding(false)} className="text-xs text-gray-400 hover:text-white tracking-widest transition-colors border border-gray-800 hover:border-gray-600 px-6 py-2 rounded-full">
             ACCÈS PRIVÉ
           </button>
         </header>
@@ -121,7 +156,7 @@ export default function VaultApp() {
             Demander une accréditation
           </button>
         </main>
-
+        
         <footer className="border-t border-gray-900 p-8 text-center flex flex-col md:flex-row justify-between items-center max-w-7xl mx-auto w-full text-[10px] text-gray-600 tracking-[0.2em]">
           <p>© 2026 VELARA HOLDING. TOUS DROITS RÉSERVÉS.</p>
           <p className="mt-4 md:mt-0">PARIS, FRANCE</p>
@@ -139,29 +174,19 @@ export default function VaultApp() {
         <button onClick={() => setShowLanding(true)} className="absolute top-8 left-8 text-xs text-gray-500 hover:text-white tracking-widest transition-colors">
           ← RETOUR À LA VITRINE
         </button>
-
         <div className="mb-12 text-center">
           <h1 className="text-4xl tracking-[0.3em] font-light mb-2">VAULT</h1>
           <p className="text-xs text-gray-500 tracking-widest">BY VELARA</p>
         </div>
-
         <div className="bg-[#111] p-8 rounded-2xl w-full max-w-md border border-gray-800 shadow-2xl">
           <form onSubmit={handleLogin} className="space-y-6">
             <div>
               <label className="block text-xs text-gray-500 mb-2 tracking-wider">IDENTIFICATION</label>
-              <input 
-                type="text" required placeholder="Identifiant sécurisé"
-                value={email} onChange={(e) => setEmail(e.target.value)}
-                className="w-full bg-black border border-gray-800 rounded-lg p-3 text-sm focus:outline-none focus:border-gray-600 transition-colors text-white placeholder-gray-700"
-              />
+              <input type="text" required placeholder="Identifiant sécurisé" value={email} onChange={(e) => setEmail(e.target.value)} className="w-full bg-black border border-gray-800 rounded-lg p-3 text-sm focus:outline-none focus:border-gray-600 transition-colors text-white placeholder-gray-700" />
             </div>
             <div>
               <label className="block text-xs text-gray-500 mb-2 tracking-wider">CLÉ DE CHIFFREMENT</label>
-              <input 
-                type="password" required placeholder="••••••••••••"
-                value={password} onChange={(e) => setPassword(e.target.value)}
-                className="w-full bg-black border border-gray-800 rounded-lg p-3 text-sm focus:outline-none focus:border-gray-600 transition-colors text-white placeholder-gray-700"
-              />
+              <input type="password" required placeholder="••••••••••••" value={password} onChange={(e) => setPassword(e.target.value)} className="w-full bg-black border border-gray-800 rounded-lg p-3 text-sm focus:outline-none focus:border-gray-600 transition-colors text-white placeholder-gray-700" />
             </div>
             <button type="submit" className="w-full bg-white text-black font-medium py-3 rounded-lg mt-4 hover:bg-gray-200 transition-colors">
               Déchiffrer l'accès
@@ -173,27 +198,35 @@ export default function VaultApp() {
   }
 
   // ------------------------------------------
-  // ÉCRAN 3 : TABLEAU DE BORD PARTITIONNÉ
+  // ÉCRAN 3 : TABLEAU DE BORD (AVEC MODE PRIVÉ & EXPORT PDF)
   // ------------------------------------------
   return (
-    <div className="min-h-screen bg-[#0a0a0a] text-white p-12 font-sans relative">
-      <header className="flex justify-between items-center mb-16 max-w-6xl mx-auto border-b border-gray-800 pb-8">
+    <div className="min-h-screen bg-[#0a0a0a] text-white p-12 font-sans relative print:bg-white print:text-black print:p-0">
+      <header className="flex justify-between items-center mb-16 max-w-6xl mx-auto border-b border-gray-800 pb-8 print:border-b-gray-300">
         <div>
           <h1 className="text-2xl tracking-[0.2em] font-light">VAULT</h1>
-          <p className="text-[9px] text-gray-600 tracking-widest mt-1 uppercase">ID ENTITÉ : {companyId}</p>
+          <p className="text-[9px] text-gray-600 tracking-widest mt-1 uppercase print:text-gray-500">ID ENTITÉ : {companyId}</p>
         </div>
-        <div className="flex items-center gap-6">
-            <button onClick={handleVIPRequest} className="text-xs text-gray-500 hover:text-white transition-colors tracking-widest">
-              CONTACTER LE GESTIONNAIRE
-            </button>
-            <div className="flex items-center gap-2 bg-[#111] border border-green-900/50 px-4 py-2 rounded-full">
-              <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></div>
-              <span className="text-green-500 text-xs tracking-wider">Réseau Sécurisé</span>
-            </div>
+        
+        {/* Tous ces boutons disparaissent quand on imprime en PDF (print:hidden) */}
+        <div className="flex items-center gap-6 print:hidden">
+            {/* Bouton Masquer/Afficher */}
             <button 
-              onClick={() => { setIsLoggedIn(false); setCompanyId(''); setEmail(''); setPassword(''); setShowLanding(true); }}
-              className="text-xs text-red-500 hover:text-red-400 transition-colors tracking-widest border border-red-900/50 px-4 py-2 rounded-full"
+              onClick={() => setIsPrivacyMode(!isPrivacyMode)}
+              className="text-xs text-gray-400 hover:text-white transition-colors tracking-widest flex items-center gap-2"
             >
+              {isPrivacyMode ? "👁️ RÉVÉLER" : "👁️‍🗨️ MASQUER"}
+            </button>
+
+            {/* Bouton Export PDF */}
+            <button 
+              onClick={handleExportPDF}
+              className="text-xs text-gray-400 hover:text-white transition-colors tracking-widest flex items-center gap-2 border border-gray-800 px-4 py-2 rounded-full hover:border-gray-600"
+            >
+              📄 EXPORT PDF
+            </button>
+
+            <button onClick={handleLogout} className="text-xs text-red-500 hover:text-red-400 transition-colors tracking-widest">
               DÉCONNEXION
             </button>
         </div>
@@ -203,15 +236,18 @@ export default function VaultApp() {
         <div className="flex justify-between items-end">
           <div>
             <h2 className="text-xs text-gray-500 tracking-widest mb-4">FONDS PROVISIONNÉS</h2>
-            <p className="text-6xl font-light">0 €</p>
+            {/* Affichage des montants avec condition Privacy Mode */}
+            <p className="text-6xl font-light">
+              {isPrivacyMode ? "••••••" : totalFunds.toLocaleString('fr-FR')} €
+            </p>
           </div>
         </div>
 
         <div className="space-y-4">
-          <h2 className="text-xs text-gray-500 tracking-widest font-medium">REGISTRE DES MEMBRES ACTIFS</h2>
-          <div className="border border-gray-800 rounded-xl overflow-hidden bg-[#111]/50">
-            <table className="w-full text-left text-sm">
-              <thead className="border-b border-gray-800 text-xs text-gray-500 tracking-wider bg-black/20">
+          <h2 className="text-xs text-gray-500 tracking-widest font-medium print:text-black">REGISTRE DES MEMBRES ACTIFS</h2>
+          <div className="border border-gray-800 rounded-xl overflow-hidden bg-[#111]/50 print:border-gray-300 print:bg-white">
+            <table className="w-full text-left text-sm print:text-black">
+              <thead className="border-b border-gray-800 text-xs text-gray-500 tracking-wider bg-black/20 print:bg-gray-100 print:border-gray-300">
                 <tr>
                   <th className="p-6 font-normal">IDENTITÉ</th>
                   <th className="p-6 font-normal">FONCTION CONFIRMÉE</th>
@@ -228,18 +264,21 @@ export default function VaultApp() {
                   </tr>
                 ) : (
                   staff.map((person) => (
-                    <tr key={person.id} className="border-t border-gray-800/30 hover:bg-white/[0.01] transition-colors">
+                    <tr key={person.id} className="border-t border-gray-800/30 hover:bg-white/[0.01] transition-colors print:border-gray-200">
                       <td className="p-6 font-medium">
                         {person.nom} 
                         {companyId === "admin_global" && (
-                          <span className="text-[9px] text-gray-600 ml-2 border border-gray-800 px-1.5 py-0.5 rounded uppercase">
+                          <span className="text-[9px] text-gray-600 ml-2 border border-gray-800 px-1.5 py-0.5 rounded uppercase print:hidden">
                             {person.entreprise_id}
                           </span>
                         )}
                       </td>
-                      <td className="p-6 text-gray-400">{person.poste}</td>
-                      <td className="p-6 font-mono text-white">{person.salaire} €</td>
-                      <td className="p-6 text-right text-green-400 tracking-wider text-xs font-medium">
+                      <td className="p-6 text-gray-400 print:text-gray-700">{person.poste}</td>
+                      <td className="p-6 font-mono text-white print:text-black">
+                        {/* Masquage du salaire */}
+                        {isPrivacyMode ? "•••• €" : `${person.salaire} €`}
+                      </td>
+                      <td className="p-6 text-right text-green-400 tracking-wider text-xs font-medium print:text-green-700">
                         ✓ ACCÈS VALIDE
                       </td>
                     </tr>
@@ -250,7 +289,7 @@ export default function VaultApp() {
           </div>
         </div>
 
-        <div className="flex justify-end pt-4">
+        <div className="flex justify-end pt-4 print:hidden">
           <button onClick={handleSEPA} className="bg-white text-black px-8 py-3 rounded-lg text-sm font-medium hover:bg-gray-200 transition-colors">
             Autoriser les virements SEPA
           </button>
