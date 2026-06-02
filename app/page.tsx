@@ -6,7 +6,7 @@ import { createClient } from "@supabase/supabase-js";
 // Connexion Supabase
 const supabase = createClient(
   "https://tslndhfoprmrlrkbunew.supabase.co",
-  "sb_publishable_G91tXPIiD3Pm02oP-YyR4A_rCjVfuW_"
+  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRzbG5kaGZvcHJtcmxya2J1bmV3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODAzMjQ3NzcsImV4cCI6MjA5NTkwMDc3N30.t3ash-DaNnKQdtDhD6t9XkyZ4eiJ2y-2-i5jklvDbN8"
 );
 
 export default function VaultApp() {
