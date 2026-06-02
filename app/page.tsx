@@ -1,224 +1,127 @@
-import { createClient } from '@supabase/supabase-js';
-
-// SOLUTION BULLDOZER : Aucune variable d'environnement.
-// On force la connexion pure avec les vraies clés en dur.
-const supabase = createClient(
-  "https://tslndhfoprmrlrkbunew.supabase.co",
-  "sb_publishable_G91tXPIiD3Pm02oP-YyR4A_rCjVfuW_"
-);
 "use client";
 
-import { useState, useEffect } from 'react';
-import { createClient } from '@supabase/supabase-js';
+import { useState, useEffect } from "react";
+import { createClient } from "@supabase/supabase-js";
 
-// SOLUTION BULLDOZER
+// L'unique connexion Supabase, propre et sécurisée (Méthode Bulldozer)
 const supabase = createClient(
   "https://tslndhfoprmrlrkbunew.supabase.co",
   "sb_publishable_G91tXPIiD3Pm02oP-YyR4A_rCjVfuW_"
 );
+
 export default function VaultApp() {
-  // 2. Gestion des états (La mémoire de l'interface)
+  // États de l'application
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [showModal, setShowModal] = useState(false);
   const [staff, setStaff] = useState<any[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
-  const [paymentDone, setPaymentDone] = useState(false);
 
-  // États du formulaire
+  // Formulaire d'ajout
   const [nom, setNom] = useState('');
   const [poste, setPoste] = useState('');
   const [salaire, setSalaire] = useState('');
   const [iban, setIban] = useState('');
 
-  // 3. Synchronisation avec la base de données
-  useEffect(() => {
-    if (isLoggedIn) {
-      fetchStaff();
-    }
-  }, [isLoggedIn]);
-
-  async function fetchStaff() {
-    const { data, error } = await supabase
-      .from('personnel_prive')
-      .select('*')
-      .order('date_ajout', { ascending: false });
-
-    if (!error && data) {
-      setStaff(data);
-    }
-  }
-
-  // 4. Logique métier
-  const formatMoney = (amount: number) => {
-    return new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(amount);
+  const handleLogin = (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsLoggedIn(true);
   };
 
-  const totalProvision = staff.reduce((acc, curr) => acc + Number(curr.salaire_net_mensuel), 0);
+  // Écran de Connexion
+  if (!isLoggedIn) {
+    return (
+      <div className="min-h-screen bg-[#0a0a0a] text-white flex flex-col items-center justify-center font-sans">
+        <div className="mb-12 text-center">
+          <h1 className="text-4xl tracking-[0.3em] font-light mb-2">VAULT</h1>
+          <p className="text-xs text-gray-500 tracking-widest">BY VELARA</p>
+        </div>
 
-  async function handleAddStaff() {
-    if (!nom || !poste || !salaire) return;
-
-    const { error } = await supabase
-      .from('personnel_prive')
-      .insert([{
-        nom_complet: nom,
-        intitule_poste: poste,
-        salaire_net_mensuel: salaire,
-        iban_chiffre: iban || "IBAN_CHIFFRÉ_PAR_DÉFAUT"
-      }]);
-
-    if (!error) {
-      setNom(''); setPoste(''); setSalaire(''); setIban('');
-      setShowModal(false);
-      fetchStaff();
-    }
-  }
-
-  async function handlePayment() {
-    setIsProcessing(true);
-    
-    setTimeout(async () => {
-      const { error } = await supabase
-        .from('personnel_prive')
-        .update({ statut_virement: 'verse' })
-        .neq('statut_virement', 'verse');
-
-      if (!error) {
-        setIsProcessing(false);
-        setPaymentDone(true);
-        fetchStaff();
-      }
-    }, 3000);
-  }
-
-  // 5. RENDU VISUEL (L'interface)
-  return (
-    <div className="min-h-screen bg-[#0a0a0a] text-gray-300 font-sans flex flex-col selection:bg-white selection:text-black">
-      
-      {/* --- ÉCRAN DE CONNEXION --- */}
-      {!isLoggedIn && (
-        <div className="flex-1 flex flex-col items-center justify-center p-4 animate-fade-in">
-          <div className="mb-10 text-center">
-            <h1 className="text-4xl font-light text-white tracking-[0.3em] ml-3">VAULT</h1>
-            <p className="text-[10px] text-gray-500 mt-3 uppercase tracking-widest">by Velara</p>
-          </div>
-          <div className="bg-[#111111] border border-white/5 p-10 rounded-2xl w-full max-w-md shadow-2xl">
-            <div className="mb-6">
-              <label className="block text-[10px] uppercase tracking-widest text-gray-500 mb-2">Identification</label>
-              <input type="email" className="w-full bg-[#0a0a0a] border border-white/5 rounded-lg p-3 text-white text-sm focus:outline-none focus:border-gray-500 transition-colors" placeholder="finance@velara.com" />
+        <div className="bg-[#111] p-8 rounded-2xl w-full max-w-md border border-gray-800 shadow-2xl">
+          <form onSubmit={handleLogin} className="space-y-6">
+            <div>
+              <label className="block text-xs text-gray-500 mb-2 tracking-wider">IDENTIFICATION</label>
+              <input 
+                type="text" 
+                defaultValue="finance@velara.com"
+                className="w-full bg-black border border-gray-800 rounded-lg p-3 text-sm focus:outline-none focus:border-gray-600 transition-colors text-white"
+              />
             </div>
-            <div className="mb-8">
-              <label className="block text-[10px] uppercase tracking-widest text-gray-500 mb-2">Clé de chiffrement</label>
-              <input type="password" className="w-full bg-[#0a0a0a] border border-white/5 rounded-lg p-3 text-white text-sm focus:outline-none focus:border-gray-500 transition-colors" placeholder="••••••••••••••••" />
+            <div>
+              <label className="block text-xs text-gray-500 mb-2 tracking-wider">CLÉ DE CHIFFREMENT</label>
+              <input 
+                type="password" 
+                defaultValue=".............."
+                className="w-full bg-black border border-gray-800 rounded-lg p-3 text-sm focus:outline-none focus:border-gray-600 transition-colors text-white"
+              />
             </div>
-            <button onClick={() => setIsLoggedIn(true)} className="w-full bg-white text-black text-sm font-medium py-3 rounded-lg hover:bg-gray-200 transition-all transform hover:scale-[1.02]">
+            <button 
+              type="submit"
+              className="w-full bg-white text-black font-medium py-3 rounded-lg mt-4 hover:bg-gray-200 transition-colors"
+            >
               Déchiffrer l'accès
             </button>
-          </div>
-          <div className="mt-16 text-center text-[10px] uppercase tracking-widest text-gray-600 space-y-2">
-            <p>Siège social : France</p>
-            <p>Contact exclusif : +33 6 17 13 16 43</p>
-          </div>
+          </form>
         </div>
-      )}
 
-      {/* --- TABLEAU DE BORD --- */}
-      {isLoggedIn && (
-        <div className="flex-1 flex flex-col w-full max-w-5xl mx-auto p-6 animate-fade-in">
-          <header className="flex justify-between items-center py-8 border-b border-gray-800/50 mb-10">
-            <div>
-              <h1 className="text-xl font-light text-white tracking-[0.2em]">VAULT</h1>
-            </div>
-            <div className="flex items-center space-x-3 text-xs">
-              <span className="flex items-center text-green-500 border border-green-500/20 bg-green-500/10 px-3 py-1 rounded-full">
-                <span className="w-1.5 h-1.5 bg-green-500 rounded-full mr-2 animate-pulse"></span>
-                Réseau Sécurisé
-              </span>
-            </div>
-          </header>
-
-          <main>
-            <div className="flex justify-between items-end mb-8">
-              <div>
-                <p className="text-xs uppercase tracking-widest text-gray-500 mb-2">Fonds provisionnés</p>
-                <h2 className="text-5xl font-light text-white tracking-tight">{formatMoney(totalProvision)}</h2>
-              </div>
-              <button onClick={() => setShowModal(true)} className="bg-[#111111] border border-white/5 text-sm px-5 py-2.5 rounded-lg hover:bg-gray-800 transition-colors text-white">
-                + Inscrire au registre
-              </button>
-            </div>
-
-            <div className="bg-[#111111] border border-white/5 rounded-xl overflow-hidden mb-8">
-              <table className="w-full text-left text-sm">
-                <thead className="bg-black/50 text-gray-500 text-[10px] uppercase tracking-widest">
-                  <tr>
-                    <th className="p-5 font-normal">Identité</th>
-                    <th className="p-5 font-normal">Fonction Privée</th>
-                    <th className="p-5 font-normal">Rémunération Nette</th>
-                    <th className="p-5 font-normal text-right">Statut</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-800/30">
-                  {staff.map((employee) => (
-                    <tr key={employee.id} className="hover:bg-gray-800/20 transition-colors group">
-                      <td className="p-5 text-white">{employee.nom_complet}</td>
-                      <td className="p-5 text-gray-400">{employee.intitule_poste}</td>
-                      <td className="p-5 text-white font-mono text-sm">{formatMoney(employee.salaire_net_mensuel)}</td>
-                      <td className="p-5 text-right">
-                        <span className={`text-[9px] uppercase tracking-widest border px-2.5 py-1 rounded ${employee.statut_virement === 'en_attente' ? 'border-yellow-500/30 bg-yellow-500/10 text-yellow-500' : 'border-green-500/30 bg-green-500/10 text-green-500'}`}>
-                          {employee.statut_virement === 'en_attente' ? 'En attente' : 'Versé'}
-                        </span>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-
-            <div className="flex justify-end">
-              <button 
-                onClick={handlePayment} 
-                disabled={isProcessing || paymentDone}
-                className={`text-sm font-medium px-8 py-3 rounded-lg transition-all flex items-center ${isProcessing ? 'bg-[#111111] text-white border border-white/5' : paymentDone ? 'bg-green-600 text-white' : 'bg-white text-black hover:bg-gray-200'}`}
-              >
-                {isProcessing ? <span className="animate-pulse">Établissement du tunnel...</span> : paymentDone ? '✓ Fonds transférés' : 'Autoriser les virements SEPA'}
-              </button>
-            </div>
-          </main>
+        <div className="mt-16 text-center text-xs text-gray-600 space-y-2">
+          <p>SIÈGE SOCIAL : FRANCE</p>
+          <p>CONTACT EXCLUSIF : +33 6 17 13 16 43</p>
         </div>
-      )}
+      </div>
+    );
+  }
 
-      {/* --- MODAL D'AJOUT --- */}
-      {showModal && (
-        <div className="fixed inset-0 bg-black/90 backdrop-blur-md flex items-center justify-center p-4 z-50">
-          <div className="bg-[#111111] border border-white/5 p-8 rounded-2xl w-full max-w-md">
-            <h3 className="text-xl text-white font-light mb-8">Nouvelle inscription</h3>
-            <div className="space-y-5">
-              <div>
-                <label className="block text-[10px] uppercase tracking-widest text-gray-500 mb-2">Nom Complet</label>
-                <input type="text" value={nom} onChange={(e) => setNom(e.target.value)} className="w-full bg-[#0a0a0a] border border-white/5 rounded-lg p-3 text-sm text-white focus:outline-none" placeholder="Ex: Jean Dupont" />
-              </div>
-              <div>
-                <label className="block text-[10px] uppercase tracking-widest text-gray-500 mb-2">Intitulé du poste (Libre)</label>
-                <input type="text" value={poste} onChange={(e) => setPoste(e.target.value)} className="w-full bg-[#0a0a0a] border border-white/5 rounded-lg p-3 text-sm text-white focus:outline-none" placeholder="Ex: Pilote Hélicoptère" />
-              </div>
-              <div>
-                <label className="block text-[10px] uppercase tracking-widest text-gray-500 mb-2">Salaire Mensuel Net (€)</label>
-                <input type="number" value={salaire} onChange={(e) => setSalaire(e.target.value)} className="w-full bg-[#0a0a0a] border border-white/5 rounded-lg p-3 text-sm text-white focus:outline-none" placeholder="0" />
-              </div>
-              <div>
-                <label className="block text-[10px] uppercase tracking-widest text-gray-500 mb-2 flex items-center gap-2">🔒 IBAN (Sera Chiffré AES-256)</label>
-                <input type="text" value={iban} onChange={(e) => setIban(e.target.value)} className="w-full bg-[#0a0a0a] border border-white/5 rounded-lg p-3 text-sm text-gray-400 focus:outline-none font-mono" placeholder="FR76..." />
-              </div>
-            </div>
-            <div className="mt-8 flex gap-4">
-              <button onClick={() => setShowModal(false)} className="flex-1 bg-transparent border border-gray-700 py-3 rounded-lg text-sm text-white hover:bg-gray-800 transition-colors">Annuler</button>
-              <button onClick={handleAddStaff} className="flex-1 bg-white text-black py-3 rounded-lg text-sm font-medium hover:bg-gray-200 transition-colors">Enregistrer</button>
-            </div>
+  // Écran du Tableau de Bord
+  return (
+    <div className="min-h-screen bg-[#0a0a0a] text-white p-12 font-sans">
+      <header className="flex justify-between items-center mb-16 max-w-6xl mx-auto border-b border-gray-800 pb-8">
+        <h1 className="text-2xl tracking-[0.2em] font-light">VAULT</h1>
+        <div className="flex items-center gap-2 bg-[#111] border border-green-900/50 px-4 py-2 rounded-full">
+          <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></div>
+          <span className="text-green-500 text-xs tracking-wider">Réseau Sécurisé</span>
+        </div>
+      </header>
+
+      <main className="max-w-6xl mx-auto space-y-12">
+        <div className="flex justify-between items-end">
+          <div>
+            <h2 className="text-xs text-gray-500 tracking-widest mb-4">FONDS PROVISIONNÉS</h2>
+            <p className="text-6xl font-light">0 €</p>
           </div>
+          <button 
+            onClick={() => setShowModal(true)}
+            className="border border-gray-800 hover:border-gray-600 px-6 py-3 rounded-lg text-sm transition-colors"
+          >
+            + Inscrire au registre
+          </button>
         </div>
-      )}
 
+        <div className="border border-gray-800 rounded-xl overflow-hidden bg-[#111]/50">
+          <table className="w-full text-left text-sm">
+            <thead className="border-b border-gray-800 text-xs text-gray-500 tracking-wider">
+              <tr>
+                <th className="p-6 font-normal">IDENTITÉ</th>
+                <th className="p-6 font-normal">FONCTION PRIVÉE</th>
+                <th className="p-6 font-normal">RÉMUNÉRATION NETTE</th>
+                <th className="p-6 font-normal text-right">STATUT</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td colSpan={4} className="p-8 text-center text-gray-600 italic">
+                  Aucun registre actif.
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div className="flex justify-end">
+          <button className="bg-white text-black px-8 py-3 rounded-lg text-sm font-medium hover:bg-gray-200 transition-colors">
+            Autoriser les virements SEPA
+          </button>
+        </div>
+      </main>
     </div>
   );
 }
