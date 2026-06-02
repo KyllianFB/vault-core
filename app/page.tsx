@@ -58,7 +58,7 @@ export default function VaultApp() {
     return (
       <div className="min-h-screen bg-[#0a0a0a] text-white font-sans selection:bg-gray-800 flex flex-col">
         {/* En-tête public */}
-        <header className="flex justify-between items-center p-8 max-w-7xl mx-auto w-full">
+        <header className="flex justify-between items-center p-8 max-w-7xl mx-auto w-full relative z-10">
           <h1 className="text-xl tracking-[0.3em] font-light">VELARA</h1>
           <button 
             onClick={() => setShowLanding(false)}
