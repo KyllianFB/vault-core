@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { createClient } from "@supabase/supabase-js";
 
-// L'unique connexion Supabase, propre et sécurisée (Méthode Bulldozer)
+// Connexion Supabase sécurisée
 const supabase = createClient(
   "https://tslndhfoprmrlrkbunew.supabase.co",
   "sb_publishable_G91tXPIiD3Pm02oP-YyR4A_rCjVfuW_"
@@ -14,9 +14,8 @@ export default function VaultApp() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [showModal, setShowModal] = useState(false);
   const [staff, setStaff] = useState<any[]>([]);
-  const [isProcessing, setIsProcessing] = useState(false);
 
-  // Formulaire d'ajout
+  // États du formulaire
   const [nom, setNom] = useState('');
   const [poste, setPoste] = useState('');
   const [salaire, setSalaire] = useState('');
@@ -27,7 +26,27 @@ export default function VaultApp() {
     setIsLoggedIn(true);
   };
 
-  // Écran de Connexion
+  const handleAddStaff = (e: React.FormEvent) => {
+    e.preventDefault();
+    // Ajout visuel dans le tableau (en attendant de le lier à Supabase)
+    const newStaff = { id: Date.now(), nom, poste, salaire, iban };
+    setStaff([...staff, newStaff]);
+    
+    // Réinitialisation et fermeture
+    setNom('');
+    setPoste('');
+    setSalaire('');
+    setIban('');
+    setShowModal(false);
+  };
+
+  const handleSEPA = () => {
+    alert("Interface SEPA en cours de configuration. Accès restreint.");
+  };
+
+  // ------------------------------------------
+  // ÉCRAN DE CONNEXION
+  // ------------------------------------------
   if (!isLoggedIn) {
     return (
       <div className="min-h-screen bg-[#0a0a0a] text-white flex flex-col items-center justify-center font-sans">
@@ -42,16 +61,16 @@ export default function VaultApp() {
               <label className="block text-xs text-gray-500 mb-2 tracking-wider">IDENTIFICATION</label>
               <input 
                 type="text" 
-                defaultValue="finance@velara.com"
-                className="w-full bg-black border border-gray-800 rounded-lg p-3 text-sm focus:outline-none focus:border-gray-600 transition-colors text-white"
+                placeholder="Identifiant sécurisé"
+                className="w-full bg-black border border-gray-800 rounded-lg p-3 text-sm focus:outline-none focus:border-gray-600 transition-colors text-white placeholder-gray-700"
               />
             </div>
             <div>
               <label className="block text-xs text-gray-500 mb-2 tracking-wider">CLÉ DE CHIFFREMENT</label>
               <input 
                 type="password" 
-                defaultValue=".............."
-                className="w-full bg-black border border-gray-800 rounded-lg p-3 text-sm focus:outline-none focus:border-gray-600 transition-colors text-white"
+                placeholder="••••••••••••"
+                className="w-full bg-black border border-gray-800 rounded-lg p-3 text-sm focus:outline-none focus:border-gray-600 transition-colors text-white placeholder-gray-700"
               />
             </div>
             <button 
@@ -71,9 +90,11 @@ export default function VaultApp() {
     );
   }
 
-  // Écran du Tableau de Bord
+  // ------------------------------------------
+  // ÉCRAN DU TABLEAU DE BORD
+  // ------------------------------------------
   return (
-    <div className="min-h-screen bg-[#0a0a0a] text-white p-12 font-sans">
+    <div className="min-h-screen bg-[#0a0a0a] text-white p-12 font-sans relative">
       <header className="flex justify-between items-center mb-16 max-w-6xl mx-auto border-b border-gray-800 pb-8">
         <h1 className="text-2xl tracking-[0.2em] font-light">VAULT</h1>
         <div className="flex items-center gap-2 bg-[#111] border border-green-900/50 px-4 py-2 rounded-full">
@@ -107,21 +128,84 @@ export default function VaultApp() {
               </tr>
             </thead>
             <tbody>
-              <tr>
-                <td colSpan={4} className="p-8 text-center text-gray-600 italic">
-                  Aucun registre actif.
-                </td>
-              </tr>
+              {staff.length === 0 ? (
+                <tr>
+                  <td colSpan={4} className="p-8 text-center text-gray-600 italic">
+                    Aucun registre actif.
+                  </td>
+                </tr>
+              ) : (
+                staff.map((person) => (
+                  <tr key={person.id} className="border-t border-gray-800/30">
+                    <td className="p-6">{person.nom}</td>
+                    <td className="p-6 text-gray-400">{person.poste}</td>
+                    <td className="p-6 font-mono">{person.salaire} €</td>
+                    <td className="p-6 text-right text-green-500">Actif</td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>
 
         <div className="flex justify-end">
-          <button className="bg-white text-black px-8 py-3 rounded-lg text-sm font-medium hover:bg-gray-200 transition-colors">
+          <button 
+            onClick={handleSEPA}
+            className="bg-white text-black px-8 py-3 rounded-lg text-sm font-medium hover:bg-gray-200 transition-colors"
+          >
             Autoriser les virements SEPA
           </button>
         </div>
       </main>
+
+      {/* ------------------------------------------ */}
+      {/* MODALE D'AJOUT (POP-UP) */}
+      {/* ------------------------------------------ */}
+      {showModal && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50">
+          <div className="bg-[#111] p-8 rounded-2xl w-full max-w-md border border-gray-800 shadow-2xl">
+            <h3 className="text-xl font-light mb-6 tracking-wider">NOUVELLE ENTRÉE</h3>
+            <form onSubmit={handleAddStaff} className="space-y-4">
+              <input 
+                type="text" placeholder="Identité complète" required
+                value={nom} onChange={(e) => setNom(e.target.value)} 
+                className="w-full bg-black border border-gray-800 rounded-lg p-3 text-sm focus:outline-none focus:border-gray-600 text-white" 
+              />
+              <input 
+                type="text" placeholder="Fonction Privée (ex: Designer)" required
+                value={poste} onChange={(e) => setPoste(e.target.value)} 
+                className="w-full bg-black border border-gray-800 rounded-lg p-3 text-sm focus:outline-none focus:border-gray-600 text-white" 
+              />
+              <input 
+                type="number" placeholder="Rémunération Nette (€)" required
+                value={salaire} onChange={(e) => setSalaire(e.target.value)} 
+                className="w-full bg-black border border-gray-800 rounded-lg p-3 text-sm focus:outline-none focus:border-gray-600 text-white" 
+              />
+              <input 
+                type="text" placeholder="IBAN Bancaire" required
+                value={iban} onChange={(e) => setIban(e.target.value)} 
+                className="w-full bg-black border border-gray-800 rounded-lg p-3 text-sm focus:outline-none focus:border-gray-600 text-white" 
+              />
+              
+              <div className="flex gap-4 mt-8 pt-4">
+                <button 
+                  type="button" 
+                  onClick={() => setShowModal(false)} 
+                  className="flex-1 bg-transparent border border-gray-800 text-white py-3 rounded-lg text-sm hover:bg-gray-900 transition-colors"
+                >
+                  Annuler
+                </button>
+                <button 
+                  type="submit" 
+                  className="flex-1 bg-white text-black py-3 rounded-lg text-sm font-medium hover:bg-gray-200 transition-colors"
+                >
+                  Confirmer
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
