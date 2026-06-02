@@ -10,32 +10,46 @@ const supabase = createClient(
 );
 
 export default function VaultApp() {
-  // Le nouvel état pour afficher la vitrine par défaut
   const [showLanding, setShowLanding] = useState(true);
-  
-  // États de l'application
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [staff, setStaff] = useState<any[]>([]);
   
-  // Verrou
+  // Verrou et gestion du Multi-Client
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [companyId, setCompanyId] = useState(''); // Retient l'entreprise du client connecté
 
+  // Charger les données filtrées par entreprise
   const fetchStaff = async () => {
-    const { data, error } = await supabase
-      .from('registre')
-      .select('*')
-      .order('created_at', { ascending: false });
+    let query = supabase.from('registre').select('*');
+
+    // SÉCURITÉ MULTI-CLIENT : Si ce n'est pas l'admin suprême, on filtre strictement
+    if (companyId !== "admin_global") {
+      query = query.eq('entreprise_id', companyId);
+    }
+
+    const { data, error } = await query.order('created_at', { ascending: false });
     if (data) setStaff(data);
   };
 
   useEffect(() => {
-    if (isLoggedIn) fetchStaff();
-  }, [isLoggedIn]);
+    if (isLoggedIn && companyId) fetchStaff();
+  }, [isLoggedIn, companyId]);
 
+  // Système d'aiguillage des connexions
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
-    if (email === "boss@velara.com" && password === "Velara2026!") {
+    
+    const userEmail = email.toLowerCase().trim();
+
+    if (userEmail === "boss@velara.com" && password === "Velara2026!") {
+      setCompanyId("admin_global"); // Toi : Accès à tout
+      setIsLoggedIn(true);
+    } else if (userEmail === "ceo@entreprisea.com" && password === "ClientVIP1") {
+      setCompanyId("entreprise_a"); // Client A : Ne verra que l'entreprise_a
+      setIsLoggedIn(true);
+    } else if (userEmail === "contact@holdingb.fr" && password === "ClientVIP2") {
+      setCompanyId("holding_b"); // Client B : Ne verra que la holding_b
       setIsLoggedIn(true);
     } else {
       alert("Accès refusé. Identification ou clé incorrecte.");
@@ -57,7 +71,6 @@ export default function VaultApp() {
   if (showLanding) {
     return (
       <div className="min-h-screen bg-[#0a0a0a] text-white font-sans selection:bg-gray-800 flex flex-col">
-        {/* En-tête public */}
         <header className="flex justify-between items-center p-8 max-w-7xl mx-auto w-full relative z-10">
           <h1 className="text-xl tracking-[0.3em] font-light">VELARA</h1>
           <button 
@@ -68,7 +81,6 @@ export default function VaultApp() {
           </button>
         </header>
 
-        {/* Cœur de la vitrine */}
         <main className="flex-1 flex flex-col items-center justify-center text-center px-4 mt-[-10vh]">
           <div className="inline-block border border-gray-800 text-gray-400 text-[10px] tracking-[0.3em] px-4 py-1.5 rounded-full mb-8">
             INFRASTRUCTURE DE GESTION
@@ -81,16 +93,11 @@ export default function VaultApp() {
             Velara déploie des architectures de paiement et des registres privés pour les entités exigeantes. 
             Une gouvernance silencieuse, une exécution absolue.
           </p>
-          
-          <button 
-            onClick={handleVIPRequest}
-            className="bg-white text-black px-8 py-4 rounded-lg text-sm font-medium hover:bg-gray-200 transition-colors tracking-wide"
-          >
+          <button onClick={handleVIPRequest} className="bg-white text-black px-8 py-4 rounded-lg text-sm font-medium hover:bg-gray-200 transition-colors tracking-wide">
             Demander une accréditation
           </button>
         </main>
 
-        {/* Pied de page */}
         <footer className="border-t border-gray-900 p-8 text-center flex flex-col md:flex-row justify-between items-center max-w-7xl mx-auto w-full text-[10px] text-gray-600 tracking-[0.2em]">
           <p>© 2026 VELARA HOLDING. TOUS DROITS RÉSERVÉS.</p>
           <p className="mt-4 md:mt-0">PARIS, FRANCE</p>
@@ -105,10 +112,7 @@ export default function VaultApp() {
   if (!isLoggedIn) {
     return (
       <div className="min-h-screen bg-[#0a0a0a] text-white flex flex-col items-center justify-center font-sans relative">
-        <button 
-          onClick={() => setShowLanding(true)}
-          className="absolute top-8 left-8 text-xs text-gray-500 hover:text-white tracking-widest transition-colors"
-        >
+        <button onClick={() => setShowLanding(true)} className="absolute top-8 left-8 text-xs text-gray-500 hover:text-white tracking-widest transition-colors">
           ← RETOUR À LA VITRINE
         </button>
 
@@ -140,22 +144,19 @@ export default function VaultApp() {
             </button>
           </form>
         </div>
-
-        <div className="mt-16 text-center text-xs text-gray-600 space-y-2">
-          <p>RÉSEAU INTERNE CHIFFRÉ</p>
-        </div>
       </div>
     );
   }
 
   // ------------------------------------------
-  // ÉCRAN 3 : TABLEAU DE BORD (COFFRE-FORT)
+  // ÉCRAN 3 : TABLEAU DE BORD PARTITIONNÉ
   // ------------------------------------------
   return (
     <div className="min-h-screen bg-[#0a0a0a] text-white p-12 font-sans relative">
       <header className="flex justify-between items-center mb-16 max-w-6xl mx-auto border-b border-gray-800 pb-8">
-        <div className="flex items-center gap-4">
+        <div>
           <h1 className="text-2xl tracking-[0.2em] font-light">VAULT</h1>
+          <p className="text-[9px] text-gray-600 tracking-widest mt-1 uppercase">ID ENTITÉ : {companyId}</p>
         </div>
         <div className="flex items-center gap-6">
             <button onClick={handleVIPRequest} className="text-xs text-gray-500 hover:text-white transition-colors tracking-widest">
@@ -166,7 +167,7 @@ export default function VaultApp() {
               <span className="text-green-500 text-xs tracking-wider">Réseau Sécurisé</span>
             </div>
             <button 
-              onClick={() => { setIsLoggedIn(false); setShowLanding(true); }}
+              onClick={() => { setIsLoggedIn(false); setCompanyId(''); setEmail(''); setPassword(''); setShowLanding(true); }}
               className="text-xs text-red-500 hover:text-red-400 transition-colors tracking-widest border border-red-900/50 px-4 py-2 rounded-full"
             >
               DÉCONNEXION
@@ -198,13 +199,20 @@ export default function VaultApp() {
                 {staff.length === 0 ? (
                   <tr>
                     <td colSpan={4} className="p-8 text-center text-gray-600 italic">
-                      Aucun membre n'est actuellement provisionné.
+                      Aucun membre n'est actuellement provisionné pour cette entité.
                     </td>
                   </tr>
                 ) : (
                   staff.map((person) => (
                     <tr key={person.id} className="border-t border-gray-800/30 hover:bg-white/[0.01] transition-colors">
-                      <td className="p-6 font-medium">{person.nom}</td>
+                      <td className="p-6 font-medium">
+                        {person.nom} 
+                        {companyId === "admin_global" && (
+                          <span className="text-[9px] text-gray-600 ml-2 border border-gray-800 px-1.5 py-0.5 rounded uppercase">
+                            {person.entreprise_id}
+                          </span>
+                        )}
+                      </td>
                       <td className="p-6 text-gray-400">{person.poste}</td>
                       <td className="p-6 font-mono text-white">{person.salaire} €</td>
                       <td className="p-6 text-right text-green-400 tracking-wider text-xs font-medium">
