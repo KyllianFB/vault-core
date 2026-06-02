@@ -23,14 +23,14 @@ export default function VaultApp() {
   // Mode Confidentialité
   const [isPrivacyMode, setIsPrivacyMode] = useState(true);
 
-  // NOUVEAU : États pour l'ajout d'un membre
+  // États pour la fenêtre modale d'ajout
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [newNom, setNewNom] = useState('');
   const [newPoste, setNewPoste] = useState('');
   const [newSalaire, setNewSalaire] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Persistance de connexion
+  // Persistance de la connexion au démarrage
   useEffect(() => {
     setIsMounted(true);
     const storedLogin = localStorage.getItem('velara_logged_in');
@@ -43,6 +43,7 @@ export default function VaultApp() {
     }
   }, []);
 
+  // Sauvegarde de l'état de session
   useEffect(() => {
     if (isLoggedIn) {
       localStorage.setItem('velara_logged_in', 'true');
@@ -53,7 +54,7 @@ export default function VaultApp() {
     }
   }, [isLoggedIn, companyId]);
 
-  // Chargement des données
+  // Chargement du registre
   const fetchStaff = async () => {
     let query = supabase.from('registre').select('*');
 
@@ -71,7 +72,7 @@ export default function VaultApp() {
 
   const totalFunds = staff.reduce((total, person) => total + (Number(person.salaire) || 0), 0);
 
-  // Connexion
+  // Authentification
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     const userEmail = email.toLowerCase().trim();
@@ -103,37 +104,38 @@ export default function VaultApp() {
     }
   };
 
-  // NOUVEAU : Fonction pour envoyer un nouvel employé dans Supabase
+  // Ajout d'un membre dans la base de données
   const handleAddMember = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
 
-    const { data, error } = await supabase
-      .from('registre')
-      .insert([
-        { 
-          nom: newNom, 
-          poste: newPoste, 
-          salaire: Number(newSalaire), 
-          entreprise_id: companyId 
-        }
-      ])
-      .select();
+    try {
+      const { data, error } = await supabase
+        .from('registre')
+        .insert([
+          { 
+            nom: newNom, 
+            poste: newPoste, 
+            salaire: Number(newSalaire), 
+            entreprise_id: companyId 
+          }
+        ])
+        .select();
 
-    if (error) {
-      alert("Erreur lors de l'ajout : " + error.message);
-    } else if (data) {
-      // On met à jour le tableau en direct sans recharger la page
-      setStaff([data[0], ...staff]);
-      
-      // On referme et on nettoie la fenêtre
-      setIsAddModalOpen(false);
-      setNewNom('');
-      setNewPoste('');
-      setNewSalaire('');
+      if (error) {
+        alert("Erreur lors de l'ajout : " + error.message);
+      } else if (data) {
+        setStaff([data[0], ...staff]);
+        setIsAddModalOpen(false);
+        setNewNom('');
+        setNewPoste('');
+        setNewSalaire('');
+      }
+    } catch (err) {
+      alert("Erreur système lors de l'inscription.");
+    } finally {
+      setIsSubmitting(false);
     }
-    
-    setIsSubmitting(false);
   };
 
   const handleSEPA = () => alert("Demande d'autorisation SEPA chiffrée. En attente de la passerelle Stripe.");
@@ -154,7 +156,7 @@ export default function VaultApp() {
   if (!isMounted) return null;
 
   // ------------------------------------------
-  // ÉCRAN 1 : LA VITRINE
+  // ÉCRAN 1 : LA VITRINE PUBLIQUE
   // ------------------------------------------
   if (showLanding && !isLoggedIn) {
     return (
@@ -179,7 +181,7 @@ export default function VaultApp() {
   }
 
   // ------------------------------------------
-  // ÉCRAN 2 : CONNEXION
+  // ÉCRAN 2 : PORTAIL D'AUTHENTIFICATION
   // ------------------------------------------
   if (!isLoggedIn) {
     return (
@@ -207,12 +209,12 @@ export default function VaultApp() {
   }
 
   // ------------------------------------------
-  // ÉCRAN 3 : TABLEAU DE BORD
+  // ÉCRAN 3 : COFFRE-FORT NUMÉRIQUE (DASHBOARD)
   // ------------------------------------------
   return (
     <div className="min-h-screen bg-[#0a0a0a] text-white p-12 font-sans relative print:bg-white print:text-black print:p-0">
       
-      {/* NOUVEAU : LA FENÊTRE MODALE D'AJOUT */}
+      {/* LA FENÊTRE MODALE D'AJOUT (FLOUTÉE) */}
       {isAddModalOpen && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-md z-50 flex items-center justify-center p-4 print:hidden">
           <div className="bg-[#111] border border-gray-800 rounded-2xl w-full max-w-lg p-8 shadow-2xl">
@@ -224,15 +226,15 @@ export default function VaultApp() {
             <form onSubmit={handleAddMember} className="space-y-6">
               <div>
                 <label className="block text-xs text-gray-500 mb-2 tracking-wider">IDENTITÉ COMPLÈTE</label>
-                <input type="text" required value={newNom} onChange={(e) => setNewNom(e.target.value)} placeholder="Ex: Jean Dupont" className="w-full bg-black border border-gray-800 rounded-lg p-3 text-sm focus:outline-none focus:border-gray-600 transition-colors text-white" />
+                <input type="text" required value={newNom} onChange={(e) => setNewNom(e.target.value)} placeholder="Ex: Jean Dupont" className="w-full bg-black border border-gray-800 rounded-lg p-3 text-sm focus:outline-none focus:border-gray-600 transition-colors text-white placeholder-gray-700" />
               </div>
               <div>
                 <label className="block text-xs text-gray-500 mb-2 tracking-wider">FONCTION ATTRIBUÉE</label>
-                <input type="text" required value={newPoste} onChange={(e) => setNewPoste(e.target.value)} placeholder="Ex: Directeur Artistique" className="w-full bg-black border border-gray-800 rounded-lg p-3 text-sm focus:outline-none focus:border-gray-600 transition-colors text-white" />
+                <input type="text" required value={newPoste} onChange={(e) => setNewPoste(e.target.value)} placeholder="Ex: Directeur Artistique" className="w-full bg-black border border-gray-800 rounded-lg p-3 text-sm focus:outline-none focus:border-gray-600 transition-colors text-white placeholder-gray-700" />
               </div>
               <div>
                 <label className="block text-xs text-gray-500 mb-2 tracking-wider">RÉMUNÉRATION NETTE (€)</label>
-                <input type="number" required value={newSalaire} onChange={(e) => setNewSalaire(e.target.value)} placeholder="Ex: 4500" className="w-full bg-black border border-gray-800 rounded-lg p-3 text-sm focus:outline-none focus:border-gray-600 transition-colors text-white" />
+                <input type="number" required value={newSalaire} onChange={(e) => setNewSalaire(e.target.value)} placeholder="Ex: 4500" className="w-full bg-black border border-gray-800 rounded-lg p-3 text-sm focus:outline-none focus:border-gray-600 transition-colors text-white placeholder-gray-700" />
               </div>
               
               <button type="submit" disabled={isSubmitting} className="w-full bg-white text-black font-medium py-3 rounded-lg mt-8 hover:bg-gray-200 transition-colors disabled:opacity-50">
@@ -243,27 +245,31 @@ export default function VaultApp() {
         </div>
       )}
 
-      <header className="flex justify-between items-center mb-16 max-w-6xl mx-auto border-b border-gray-800 pb-8 print:border-b-gray-300">
+      {/* EN-TÊTE CONFIGURÉ EN RESPONSIVE SÉCURISÉ */}
+      <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 mb-16 max-w-6xl mx-auto border-b border-gray-800 pb-8 print:border-b-gray-300">
         <div>
           <h1 className="text-2xl tracking-[0.2em] font-light">VAULT</h1>
           <p className="text-[9px] text-gray-600 tracking-widest mt-1 uppercase print:text-gray-500">ID ENTITÉ : {companyId}</p>
         </div>
         
-        <div className="flex items-center gap-6 print:hidden">
-            {/* NOUVEAU : BOUTON AJOUTER */}
+        {/* Actions du coffre-fort */}
+        <div className="flex flex-wrap items-center gap-4 md:gap-6 print:hidden">
+            {/* BOUTON D'ACTION AJOUTER (Style Premium Distinct) */}
             <button 
               onClick={() => setIsAddModalOpen(true)}
-              className="text-xs text-white tracking-widest flex items-center gap-2 bg-white/10 px-4 py-2 rounded-full hover:bg-white/20 transition-colors border border-gray-700"
+              className="text-[11px] text-white tracking-widest font-medium bg-[#161616] border border-gray-700 px-5 py-2.5 rounded-full hover:bg-[#222] hover:border-gray-500 transition-all shadow-inner"
             >
               + NOUVEAU MEMBRE
             </button>
 
-            <button onClick={() => setIsPrivacyMode(!isPrivacyMode)} className="text-xs text-gray-400 hover:text-white transition-colors tracking-widest flex items-center gap-2">
+            <button onClick={() => setIsPrivacyMode(!isPrivacyMode)} className="text-xs text-gray-400 hover:text-white transition-colors tracking-widest">
               {isPrivacyMode ? "👁️ RÉVÉLER" : "👁️‍🗨️ MASQUER"}
             </button>
-            <button onClick={() => window.print()} className="text-xs text-gray-400 hover:text-white transition-colors tracking-widest flex items-center gap-2 border border-gray-800 px-4 py-2 rounded-full hover:border-gray-600">
+            
+            <button onClick={() => window.print()} className="text-xs text-gray-400 hover:text-white transition-colors tracking-widest border border-gray-800 px-4 py-2 rounded-full hover:border-gray-600">
               📄 EXPORT PDF
             </button>
+            
             <button onClick={handleLogout} className="text-xs text-red-500 hover:text-red-400 transition-colors tracking-widest">
               DÉCONNEXION
             </button>
