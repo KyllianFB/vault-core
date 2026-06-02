@@ -1,12 +1,11 @@
-"use client";
-
-import { useState, useEffect } from 'react';
 import { createClient } from '@supabase/supabase-js';
 
-// 1. Initialisation de Supabase via le fichier .env.local
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
-const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
-const supabase = createClient(supabaseUrl, supabaseKey);
+// SOLUTION BULLDOZER : Aucune variable d'environnement.
+// On force la connexion pure avec les vraies clés en dur.
+const supabase = createClient(
+  "https://tslndhfoprmrlrkbunew.supabase.co",
+  "sb_publishable_G91tXPIiD3Pm02oP-YyR4A_rCjVfuW_"
+);
 
 export default function VaultApp() {
   // 2. Gestion des états (La mémoire de l'interface)
