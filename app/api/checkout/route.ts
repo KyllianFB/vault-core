@@ -25,7 +25,7 @@ export async function POST(request: Request) {
     // --- MODE 2 : PRODUCTION RÉELLE (S'active via l'interrupteur) ---
     // Initialisation sécurisée du SDK Stripe avec ta clé secrète cachée
     const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || '', {
-      apiVersion: '2023-10-16', // Version stable de l'API Stripe
+      apiVersion: '2026-05-27.dahlia', // Version stable de l'API Stripe
     });
 
     // Création d'un ordre de paiement réel en Direct Debit SEPA
